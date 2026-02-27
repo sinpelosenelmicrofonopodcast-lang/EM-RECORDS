@@ -2,11 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SectionTitle } from "@/components/shared/section-title";
 import { getSiteLanguage } from "@/lib/i18n/server";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Publishing by DGM Music",
-  description: "Publishing division for rights administration, licensing and catalog growth."
-};
+  description: "División editorial de EM Records para administración de derechos, sync y crecimiento de catálogo.",
+  path: "/publishing",
+  keywords: ["music publishing", "administración de derechos", "regalías", "sync placements"]
+});
 
 export default async function PublishingPage() {
   const lang = await getSiteLanguage();

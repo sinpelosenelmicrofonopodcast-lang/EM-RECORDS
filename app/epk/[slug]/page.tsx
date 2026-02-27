@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { lockEpkAction, unlockEpkAction } from "@/lib/actions/site";
 import { createEpkAccessToken, getEpkCookieName } from "@/lib/epk";
 import { getArtistBySlug, getUpcomingEvents } from "@/lib/queries";
+import { buildPageMetadata } from "@/lib/seo";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -26,13 +27,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const artist = await getArtistBySlug(slug);
 
   if (!artist || !artist.epkEnabled) {
-    return { title: "EPK" };
+    return buildPageMetadata({
+      title: "EPK",
+      description: "Electronic Press Kit privado.",
+      path: `/epk/${slug}`,
+      noIndex: true
+    });
   }
 
-  return {
+  return buildPageMetadata({
     title: `${artist.name} EPK`,
-    description: `Private electronic press kit for ${artist.name}.`
-  };
+    description: `Private electronic press kit for ${artist.name}.`,
+    path: `/epk/${slug}`,
+    noIndex: true
+  });
 }
 
 async function getArtistEpkSecurity(

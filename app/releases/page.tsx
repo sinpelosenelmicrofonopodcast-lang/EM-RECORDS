@@ -3,6 +3,7 @@ import { ReleaseCatalog } from "@/components/releases/release-catalog";
 import { SectionTitle } from "@/components/shared/section-title";
 import { getSiteLanguage } from "@/lib/i18n/server";
 import { getArtists, getReleases } from "@/lib/queries";
+import { buildPageMetadata } from "@/lib/seo";
 import {
   absoluteUrl,
   formatDate,
@@ -12,10 +13,12 @@ import {
   toJsonLd
 } from "@/lib/utils";
 
-export const metadata: Metadata = {
-  title: "Releases",
-  description: "Official EM Records discography and featured drops."
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: "Lanzamientos",
+  description: "Discografía oficial de EM Records con singles, EPs y álbumes del catálogo.",
+  path: "/releases",
+  keywords: ["discografía", "lanzamientos urbanos", "spotify em records", "apple music em records"]
+});
 
 export default async function ReleasesPage() {
   const lang = await getSiteLanguage();
@@ -45,22 +48,43 @@ export default async function ReleasesPage() {
   });
   const releasesSchema = {
     "@context": "https://schema.org",
-    "@type": "ItemList",
-    name: lang === "es" ? "Últimos Lanzamientos EM Records" : "EM Records Latest Releases",
-    itemListElement: catalogItems.map((item, index) => ({
-      "@type": "ListItem",
-      position: index + 1,
-      item: {
-        "@type": "MusicRecording",
-        name: item.title,
-        byArtist: {
-          "@type": "MusicGroup",
-          name: item.artistName
-        },
-        datePublished: releases[index]?.releaseDate,
-        image: /^https?:\/\//i.test(item.coverUrl) ? item.coverUrl : absoluteUrl(item.coverUrl)
+    "@graph": [
+      {
+        "@type": "ItemList",
+        name: lang === "es" ? "Últimos Lanzamientos EM Records" : "EM Records Latest Releases",
+        itemListElement: catalogItems.map((item, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          item: {
+            "@type": "MusicRecording",
+            name: item.title,
+            byArtist: {
+              "@type": "MusicGroup",
+              name: item.artistName
+            },
+            datePublished: releases[index]?.releaseDate,
+            image: /^https?:\/\//i.test(item.coverUrl) ? item.coverUrl : absoluteUrl(item.coverUrl)
+          }
+        }))
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Inicio",
+            item: absoluteUrl("/")
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: lang === "es" ? "Lanzamientos" : "Releases",
+            item: absoluteUrl("/releases")
+          }
+        ]
       }
-    }))
+    ]
   };
 
   return (

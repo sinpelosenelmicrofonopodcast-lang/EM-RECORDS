@@ -2,19 +2,66 @@ import type { Metadata } from "next";
 import { SectionTitle } from "@/components/shared/section-title";
 import { getSiteLanguage } from "@/lib/i18n/server";
 import { getUpcomingEvents } from "@/lib/queries";
-import { formatDate } from "@/lib/utils";
+import { buildPageMetadata } from "@/lib/seo";
+import { absoluteUrl, formatDate, toJsonLd } from "@/lib/utils";
 
-export const metadata: Metadata = {
-  title: "Events & Tours",
-  description: "Upcoming shows, tour dates and ticketing by EM Records."
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: "Eventos y Tours",
+  description: "Próximos conciertos, fechas de tour y venta de tickets oficial de EM Records.",
+  path: "/events",
+  keywords: ["eventos urbanos", "conciertos latin urban", "tickets em records", "tour dates"]
+});
 
 export default async function EventsPage() {
   const lang = await getSiteLanguage();
   const events = await getUpcomingEvents();
+  const eventsSchema = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "ItemList",
+        name: lang === "es" ? "Próximos Eventos EM Records" : "EM Records Upcoming Events",
+        itemListElement: events.map((event, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          item: {
+            "@type": "MusicEvent",
+            name: event.title,
+            startDate: event.startsAt,
+            eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+            eventStatus: "https://schema.org/EventScheduled",
+            location: {
+              "@type": "Place",
+              name: event.venue,
+              address: `${event.city}, ${event.country}`
+            },
+            url: event.ticketUrl ?? absoluteUrl("/events")
+          }
+        }))
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Inicio",
+            item: absoluteUrl("/")
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: lang === "es" ? "Eventos" : "Events",
+            item: absoluteUrl("/events")
+          }
+        ]
+      }
+    ]
+  };
 
   return (
     <div className="mx-auto w-full max-w-7xl px-6 py-20 md:px-10">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLd(eventsSchema) }} />
       <SectionTitle
         eyebrow={lang === "es" ? "Eventos / Conciertos" : "Events / Concerts"}
         title={lang === "es" ? "Calendario de Tours" : "Tour Calendar"}

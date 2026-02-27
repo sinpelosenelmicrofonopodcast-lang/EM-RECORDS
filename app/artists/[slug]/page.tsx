@@ -6,6 +6,7 @@ import { ButtonLink } from "@/components/shared/button";
 import { SectionTitle } from "@/components/shared/section-title";
 import { getSiteLanguage } from "@/lib/i18n/server";
 import { getArtistBySlug, getUpcomingEvents } from "@/lib/queries";
+import { buildPageMetadata } from "@/lib/seo";
 import { absoluteUrl, formatDate, getSpotifyEmbedHeight, normalizeImageUrl, normalizeSoundCloudEmbedUrl, normalizeSpotifyEmbedUrl, normalizeYouTubeEmbedUrl, toJsonLd } from "@/lib/utils";
 
 type Props = {
@@ -17,13 +18,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const artist = await getArtistBySlug(slug);
 
   if (!artist) {
-    return { title: "Artist" };
+    return buildPageMetadata({
+      title: "Artista",
+      description: "Perfil de artista EM Records.",
+      path: `/artists/${slug}`,
+      noIndex: true
+    });
   }
 
-  return {
+  return buildPageMetadata({
     title: artist.name,
-    description: artist.tagline
-  };
+    description: artist.tagline,
+    path: `/artists/${slug}`,
+    type: "profile",
+    image: normalizeImageUrl(artist.avatarUrl),
+    keywords: [artist.name, "artista urbano", "em records artist"]
+  });
 }
 
 export default async function ArtistDetailPage({ params }: Props) {

@@ -4,7 +4,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSiteLanguage } from "@/lib/i18n/server";
 import { getNewsBySlug } from "@/lib/queries";
-import { formatDate, normalizeImageUrl } from "@/lib/utils";
+import { buildPageMetadata } from "@/lib/seo";
+import { absoluteUrl, formatDate, normalizeImageUrl, toJsonLd } from "@/lib/utils";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -15,15 +16,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const article = await getNewsBySlug(slug);
 
   if (!article) {
-    return {
-      title: "News"
-    };
+    return buildPageMetadata({
+      title: "Noticia",
+      description: "Artículo editorial de EM Records.",
+      path: `/news/${slug}`,
+      noIndex: true
+    });
   }
 
-  return {
+  return buildPageMetadata({
     title: article.title,
-    description: article.excerpt
-  };
+    description: article.excerpt,
+    path: `/news/${slug}`,
+    type: "article",
+    image: normalizeImageUrl(article.heroUrl),
+    keywords: [article.category, "noticias em records", "prensa musical"]
+  });
 }
 
 export default async function NewsDetailPage({ params }: Props) {
@@ -39,9 +47,57 @@ export default async function NewsDetailPage({ params }: Props) {
     .split(/\n+/)
     .map((item) => item.trim())
     .filter(Boolean);
+  const articleSchema = {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    headline: article.title,
+    description: article.excerpt,
+    datePublished: article.publishedAt,
+    dateModified: article.publishAt ?? article.publishedAt,
+    author: {
+      "@type": "Organization",
+      name: "EM Records LLC"
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "EM Records LLC",
+      logo: {
+        "@type": "ImageObject",
+        url: absoluteUrl("/images/em-logo-og.svg")
+      }
+    },
+    image: [normalizeImageUrl(article.heroUrl)],
+    mainEntityOfPage: absoluteUrl(`/news/${article.slug}`)
+  };
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Inicio",
+        item: absoluteUrl("/")
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Noticias",
+        item: absoluteUrl("/news")
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: article.title,
+        item: absoluteUrl(`/news/${article.slug}`)
+      }
+    ]
+  };
 
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-20 md:px-10">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLd(articleSchema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLd(breadcrumbSchema) }} />
       <Link href="/news" className="text-xs uppercase tracking-[0.22em] text-gold hover:underline">
         {lang === "es" ? "Volver a Noticias" : "Back to News"}
       </Link>

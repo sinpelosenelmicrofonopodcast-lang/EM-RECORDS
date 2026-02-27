@@ -2,11 +2,14 @@ import type { Metadata } from "next";
 import { submitDemoAction } from "@/lib/actions/site";
 import { SectionTitle } from "@/components/shared/section-title";
 import { getSiteLanguage } from "@/lib/i18n/server";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Join EM",
-  description: "Submit your demo to EM Records A&R."
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: "Únete a EM",
+  description: "Envía tu demo al equipo A&R de EM Records y entra al proceso oficial de revisión.",
+  path: "/join",
+  keywords: ["enviar demo", "a&r", "firma disquera", "em records demos"]
+});
 
 export default async function JoinPage() {
   const lang = await getSiteLanguage();

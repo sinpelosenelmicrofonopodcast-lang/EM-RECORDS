@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import { SectionTitle } from "@/components/shared/section-title";
 import { getSiteLanguage } from "@/lib/i18n/server";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "EM Legacy",
-  description: "Milestones and legacy timeline of EM Records."
-};
+  description: "Cronología de hitos, legado e impacto cultural de EM Records.",
+  path: "/legacy",
+  keywords: ["historia em records", "legacy", "hitos del sello"]
+});
 
 export default async function LegacyPage() {
   const lang = await getSiteLanguage();

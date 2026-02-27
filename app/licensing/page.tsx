@@ -2,11 +2,14 @@ import type { Metadata } from "next";
 import { submitSponsorApplicationAction } from "@/lib/actions/site";
 import { SectionTitle } from "@/components/shared/section-title";
 import { getSiteLanguage } from "@/lib/i18n/server";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Licensing & Sponsors",
-  description: "Sync licensing requests, sponsor plans and partnership applications."
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: "Licensing y Sponsors",
+  description: "Solicitudes de sync licensing, patrocinio y alianzas estratégicas con EM Records.",
+  path: "/licensing",
+  keywords: ["music licensing", "sync licensing", "patrocinio musical", "brand partnership"]
+});
 
 export default async function LicensingPage() {
   const lang = await getSiteLanguage();

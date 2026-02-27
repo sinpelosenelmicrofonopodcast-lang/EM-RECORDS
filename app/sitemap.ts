@@ -22,8 +22,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ].map((path) => ({
     url: absoluteUrl(path),
     lastModified: now,
-    changeFrequency: "weekly",
-    priority: path === "" ? 1 : 0.7
+    changeFrequency: path === "" ? "daily" : path === "/news" || path === "/releases" ? "daily" : "weekly",
+    priority: path === "" ? 1 : path === "/releases" || path === "/artists" || path === "/killeen-next-up" ? 0.95 : 0.8
   }));
 
   const artistRoutes: MetadataRoute.Sitemap = artists.map((artist) => ({
@@ -37,7 +37,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     url: absoluteUrl(`/news/${item.slug}`),
     lastModified: new Date(item.publishedAt),
     changeFrequency: "monthly",
-    priority: 0.6
+    priority: 0.8
   }));
 
   return [...staticRoutes, ...artistRoutes, ...newsRoutes];

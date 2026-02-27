@@ -4,19 +4,60 @@ import Link from "next/link";
 import { SectionTitle } from "@/components/shared/section-title";
 import { getSiteLanguage } from "@/lib/i18n/server";
 import { getNews } from "@/lib/queries";
-import { formatDate, normalizeImageUrl } from "@/lib/utils";
+import { buildPageMetadata } from "@/lib/seo";
+import { absoluteUrl, formatDate, normalizeImageUrl, toJsonLd } from "@/lib/utils";
 
-export const metadata: Metadata = {
-  title: "News & Press",
-  description: "EM Records editorial blog, press appearances and announcements."
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: "Noticias y Prensa",
+  description: "Noticias oficiales, apariciones en prensa y comunicados editoriales de EM Records.",
+  path: "/news",
+  keywords: ["prensa musical", "noticias em records", "blog editorial urbano", "latin music news"]
+});
 
 export default async function NewsPage() {
   const lang = await getSiteLanguage();
   const news = await getNews();
+  const newsSchema = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "ItemList",
+        name: lang === "es" ? "Noticias y Prensa EM Records" : "EM Records News and Press",
+        itemListElement: news.map((item, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          item: {
+            "@type": "NewsArticle",
+            headline: item.title,
+            datePublished: item.publishedAt,
+            url: absoluteUrl(`/news/${item.slug}`),
+            image: normalizeImageUrl(item.heroUrl)
+          }
+        }))
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Inicio",
+            item: absoluteUrl("/")
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: lang === "es" ? "Noticias" : "News",
+            item: absoluteUrl("/news")
+          }
+        ]
+      }
+    ]
+  };
 
   return (
     <div className="mx-auto w-full max-w-7xl px-6 py-20 md:px-10">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLd(newsSchema) }} />
       <SectionTitle
         eyebrow={lang === "es" ? "Noticias / Prensa" : "News / Press"}
         title={lang === "es" ? "Editorial" : "Editorial"}

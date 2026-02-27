@@ -8,12 +8,16 @@ import { castNextUpVoteAction, submitNextUpDemoAction } from "@/lib/actions/site
 import { getSiteLanguage } from "@/lib/i18n/server";
 import { getNextUpVotingPhase, resolveNextUpVotingWindow } from "@/lib/next-up-voting";
 import { getNextUpCompetitors, getNextUpLeaderboard, getNextUpSettings } from "@/lib/queries";
-import { normalizeImageUrl, normalizeSoundCloudEmbedUrl, normalizeYouTubeEmbedUrl } from "@/lib/utils";
+import { buildPageMetadata } from "@/lib/seo";
+import { absoluteUrl, normalizeImageUrl, normalizeSoundCloudEmbedUrl, normalizeYouTubeEmbedUrl, toJsonLd } from "@/lib/utils";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Killeen Next Up",
-  description: "KILLEEN NEXT UP powered by EM Records: submit your demo, vote and follow the competition."
-};
+  description: "Concurso musical oficial de EM Records en Killeen: envía demo, participa y sigue el ranking.",
+  path: "/killeen-next-up",
+  keywords: ["killeen next up", "concurso de canto", "concurso rap killeen", "em records competition"],
+  image: "/images/killeen-next-up-banner.png"
+});
 
 type Props = {
   searchParams: Promise<{ demo?: string; vote?: string }>;
@@ -98,9 +102,52 @@ export default async function KilleenNextUpPage({ searchParams }: Props) {
   const { startsAt: votingStartsAt, endsAt: votingEndsAt } = resolveNextUpVotingWindow(settings.votingStartsAt, settings.votingEndsAt);
   const votingPhase = getNextUpVotingPhase(new Date(), votingStartsAt, votingEndsAt);
   const canVoteNow = votingEnabled && votingPhase === "active";
+  const competitionSchema = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Event",
+        name: "Killeen Next Up",
+        description: "Competencia musical local powered by EM Records.",
+        eventStatus: "https://schema.org/EventScheduled",
+        eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+        organizer: {
+          "@type": "Organization",
+          name: "EM Records LLC",
+          url: absoluteUrl("/")
+        },
+        image: [absoluteUrl("/images/killeen-next-up-banner.png")],
+        url: absoluteUrl("/killeen-next-up"),
+        location: {
+          "@type": "Place",
+          name: "Killeen, Texas"
+        },
+        startDate: votingStartsAt.toISOString(),
+        endDate: votingEndsAt.toISOString()
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Inicio",
+            item: absoluteUrl("/")
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: "Killeen Next Up",
+            item: absoluteUrl("/killeen-next-up")
+          }
+        ]
+      }
+    ]
+  };
 
   return (
     <div className="bg-gradient-to-b from-[#070707] via-[#0b0b0f] to-black">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLd(competitionSchema) }} />
       <section className="relative overflow-hidden border-b border-white/10">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_22%_18%,rgba(229,57,53,0.22),transparent_38%),radial-gradient(circle_at_80%_4%,rgba(198,168,91,0.22),transparent_33%)]" />
         <div className="mx-auto w-full max-w-7xl px-6 py-24 md:px-10">

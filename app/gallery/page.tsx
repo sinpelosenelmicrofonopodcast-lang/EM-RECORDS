@@ -3,12 +3,15 @@ import Image from "next/image";
 import { SectionTitle } from "@/components/shared/section-title";
 import { getSiteLanguage } from "@/lib/i18n/server";
 import { getGallery } from "@/lib/queries";
+import { buildPageMetadata } from "@/lib/seo";
 import { normalizeImageUrl } from "@/lib/utils";
 
-export const metadata: Metadata = {
-  title: "Gallery",
-  description: "EM visual gallery, backstage captures and campaign footage."
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: "Galería Visual",
+  description: "Galería oficial de EM Records con backstage, shows, sesiones y contenido editorial.",
+  path: "/gallery",
+  keywords: ["galería em records", "fotos de artistas urbanos", "backstage music"]
+});
 
 export default async function GalleryPage() {
   const lang = await getSiteLanguage();

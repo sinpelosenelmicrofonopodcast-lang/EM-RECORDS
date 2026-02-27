@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 import { acceptTermsAction } from "@/lib/actions/site";
 import { getSiteLanguage } from "@/lib/i18n/server";
+import { buildPageMetadata } from "@/lib/seo";
 import { sanitizeNextPath } from "@/lib/terms";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildPageMetadata({
   title: "Legal",
-  description: "Terms of Service, Privacy Policy, Copyright and DMCA for EM Records LLC."
-};
+  description: "Términos de servicio, política de privacidad, copyright y DMCA de EM Records LLC.",
+  path: "/legal",
+  keywords: ["términos y condiciones", "privacy policy", "copyright", "dmca"]
+});
 
 function LegalSection({ title, content }: { title: string; content: string }) {
   return (
