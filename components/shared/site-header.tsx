@@ -19,7 +19,12 @@ export async function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-black/85 backdrop-blur-xl">
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-4 md:px-10">
-        <TrackedLink href="/" eventName="nav_click" metadata={{ target: "home_logo" }} className="block w-[116px] sm:w-[132px]">
+        <TrackedLink
+          href="/"
+          eventName="nav_click"
+          metadata={{ target: "home_logo" }}
+          className="flex w-[116px] items-center justify-center sm:w-[132px]"
+        >
           <EmLogo className="opacity-95 transition hover:opacity-100" alt="EM Records" />
         </TrackedLink>
 

@@ -48,7 +48,7 @@ export function Hero({ lang }: HeroProps) {
       <div className="absolute inset-0 -z-10 bg-gradient-to-b from-black/20 via-black/60 to-black" />
 
       <div className="mx-auto flex min-h-[86vh] w-full max-w-7xl flex-col justify-end px-6 pb-16 pt-28 md:px-10">
-        <div className="mb-5 w-[180px] md:w-[220px]">
+        <div className="mb-5 flex w-[180px] items-center justify-center md:w-[220px]">
           <EmLogo priority alt="EM Records LLC" />
         </div>
         <p className="mb-4 text-xs uppercase tracking-[0.32em] text-gold">EM Records LLC</p>

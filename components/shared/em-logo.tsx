@@ -15,7 +15,7 @@ export function EmLogo({ className, priority = false, alt = "EM Records logo" }:
       width={1200}
       height={520}
       priority={priority}
-      className={cn("h-auto w-full object-contain", className)}
+      className={cn("block h-auto w-full object-contain object-center", className)}
     />
   );
 }

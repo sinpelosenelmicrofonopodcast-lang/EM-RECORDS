@@ -3,7 +3,7 @@
     <text x="50%" y="220" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="260" letter-spacing="4">EM</text>
     <text x="50%" y="360" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="136" letter-spacing="2">RECORDS</text>
   </g>
-  <g fill="white" transform="translate(250,400)">
+  <g fill="white" transform="translate(290,400)">
     <rect x="0" y="46" width="20" height="6"/>
     <rect x="30" y="46" width="20" height="6"/>
     <rect x="60" y="44" width="20" height="8"/>

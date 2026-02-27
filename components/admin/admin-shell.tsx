@@ -19,7 +19,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
   return (
     <div className="mx-auto grid w-full max-w-7xl gap-6 px-6 py-10 md:grid-cols-[220px_1fr] md:px-10">
       <aside className="h-fit rounded-2xl border border-white/10 bg-white/[0.02] p-4 md:sticky md:top-24">
-        <Link href="/" className="mb-4 block w-[130px]">
+        <Link href="/" className="mb-4 flex w-[130px] items-center justify-center">
           <EmLogo alt="EM Records" />
         </Link>
         <p className="text-xs uppercase tracking-[0.22em] text-gold">Admin</p>

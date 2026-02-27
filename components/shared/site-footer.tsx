@@ -11,7 +11,7 @@ export async function SiteFooter() {
     <footer className="border-t border-white/10 bg-black">
       <div className="mx-auto grid w-full max-w-7xl gap-8 px-6 py-14 md:grid-cols-3 md:px-10">
         <div>
-          <div className="w-[220px]">
+          <div className="flex w-[220px] items-center justify-center">
             <EmLogo alt="EM Records LLC" />
           </div>
           <p className="mt-3 max-w-sm text-sm text-white/60">
