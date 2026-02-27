@@ -7,6 +7,7 @@ import { createEpkAccessToken, getEpkCookieName, hashEpkPassword, sanitizeEpkSlu
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { sanitizeNextPath, TERMS_CONSENT_COOKIE, TERMS_CONSENT_MAX_AGE, TERMS_CONSENT_VALUE } from "@/lib/terms";
 
 export async function subscribeNewsletterAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
@@ -206,4 +207,22 @@ export async function lockEpkAction(formData: FormData) {
   });
 
   redirect(`/epk/${slug}`);
+}
+
+export async function acceptTermsAction(formData: FormData) {
+  const nextInput = String(formData.get("next") ?? "/");
+  const nextPath = sanitizeNextPath(nextInput);
+  const cookieStore = await cookies();
+
+  cookieStore.set({
+    name: TERMS_CONSENT_COOKIE,
+    value: TERMS_CONSENT_VALUE,
+    path: "/",
+    httpOnly: false,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: TERMS_CONSENT_MAX_AGE
+  });
+
+  redirect(nextPath === "/legal" ? "/" : nextPath);
 }

@@ -33,6 +33,9 @@ export function TermsConsentModal() {
     if (accepted && !acceptedInStorage) {
       window.localStorage.setItem(TERMS_KEY, TERMS_CONSENT_VALUE);
     }
+    if (acceptedInStorage && !acceptedInCookie) {
+      document.cookie = `${TERMS_CONSENT_COOKIE}=${TERMS_CONSENT_VALUE}; path=/; max-age=${TERMS_CONSENT_MAX_AGE}; samesite=lax`;
+    }
 
     setOpen(!accepted);
     setReady(true);
