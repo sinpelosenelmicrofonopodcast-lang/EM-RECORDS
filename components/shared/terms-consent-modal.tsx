@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { hasTermsConsentCookie, sanitizeNextPath, TERMS_CONSENT_COOKIE, TERMS_CONSENT_MAX_AGE, TERMS_CONSENT_VALUE } from "@/lib/terms";
 
@@ -10,7 +10,6 @@ const TERMS_KEY = "em_terms_accepted_v1";
 export function TermsConsentModal() {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const isAdminRoute = pathname?.startsWith("/admin");
   const [open, setOpen] = useState(false);
   const [ready, setReady] = useState(false);
@@ -56,7 +55,8 @@ export function TermsConsentModal() {
     document.cookie = `${TERMS_CONSENT_COOKIE}=${TERMS_CONSENT_VALUE}; path=/; max-age=${TERMS_CONSENT_MAX_AGE}; samesite=lax`;
     setOpen(false);
 
-    const nextPath = sanitizeNextPath(String(searchParams.get("next") ?? "/"));
+    const nextParam = new URLSearchParams(window.location.search).get("next");
+    const nextPath = sanitizeNextPath(String(nextParam ?? "/"));
     if (nextPath && nextPath !== "/legal") {
       router.push(nextPath);
     }
