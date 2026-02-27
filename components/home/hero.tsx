@@ -4,8 +4,13 @@ import { useRef, useState } from "react";
 import { Volume2, VolumeX } from "lucide-react";
 import { ButtonLink } from "@/components/shared/button";
 import { EmLogo } from "@/components/shared/em-logo";
+import type { SiteLanguage } from "@/lib/i18n";
 
-export function Hero() {
+type HeroProps = {
+  lang: SiteLanguage;
+};
+
+export function Hero({ lang }: HeroProps) {
   const [audioEnabled, setAudioEnabled] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -49,16 +54,18 @@ export function Hero() {
         </h1>
 
         <p className="mt-5 max-w-2xl text-sm leading-relaxed text-white/70 md:text-base">
-          Urban latin culture, international strategy and major-label execution. This is not a local studio. This is a movement.
+          {lang === "es"
+            ? "Cultura urbana latina, estrategia internacional y ejecución de major label. Esto no es un estudio local. Esto es un movimiento."
+            : "Urban latin culture, international strategy and major-label execution. This is not a local studio. This is a movement."}
         </p>
 
         <div className="mt-10 flex flex-wrap items-center gap-3">
-          <ButtonLink href="/artists">Explore Artists</ButtonLink>
+          <ButtonLink href="/artists">{lang === "es" ? "Explorar artistas" : "Explore Artists"}</ButtonLink>
           <ButtonLink href="/releases" variant="ghost">
-            Latest Release
+            {lang === "es" ? "Último lanzamiento" : "Latest Release"}
           </ButtonLink>
           <ButtonLink href="/join" variant="ghost">
-            Join The Movement
+            {lang === "es" ? "Únete al movimiento" : "Join The Movement"}
           </ButtonLink>
 
           <button
@@ -67,7 +74,7 @@ export function Hero() {
             className="ml-auto inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-2 text-[11px] uppercase tracking-[0.18em] text-white/70 hover:border-gold hover:text-gold"
           >
             {audioEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
-            Ambient Audio
+            {lang === "es" ? "Audio ambiente" : "Ambient Audio"}
           </button>
         </div>
       </div>

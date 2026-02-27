@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ButtonLink } from "@/components/shared/button";
 import { SectionTitle } from "@/components/shared/section-title";
+import { getSiteLanguage } from "@/lib/i18n/server";
 import { getArtistBySlug, getUpcomingEvents } from "@/lib/queries";
 import { formatDate, getSpotifyEmbedHeight, normalizeImageUrl, normalizeSoundCloudEmbedUrl, normalizeSpotifyEmbedUrl, normalizeYouTubeEmbedUrl } from "@/lib/utils";
 
@@ -26,6 +27,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ArtistDetailPage({ params }: Props) {
+  const lang = await getSiteLanguage();
   const { slug } = await params;
   const artist = await getArtistBySlug(slug);
 
@@ -56,7 +58,7 @@ export default async function ArtistDetailPage({ params }: Props) {
         <div className="absolute inset-0 -z-10 bg-gradient-to-br from-gold/20 via-transparent to-transparent" />
         <div className="mx-auto grid min-h-[65vh] w-full max-w-7xl gap-10 px-6 py-20 md:grid-cols-2 md:items-end md:px-10">
           <div>
-            <p className="text-xs uppercase tracking-[0.28em] text-gold">EM Artist</p>
+            <p className="text-xs uppercase tracking-[0.28em] text-gold">{lang === "es" ? "Artista EM" : "EM Artist"}</p>
             <h1 className="mt-4 font-display text-5xl text-white md:text-7xl">{artist.name}</h1>
             <p className="mt-4 text-base text-white/75">{artist.tagline}</p>
             <p className="mt-6 max-w-xl text-sm leading-relaxed text-white/65">{artist.bio}</p>
@@ -70,7 +72,7 @@ export default async function ArtistDetailPage({ params }: Props) {
               </ButtonLink>
               {artist.epkEnabled ? (
                 <ButtonLink href={`/epk/${artist.slug}`} variant="ghost">
-                  Private EPK
+                  {lang === "es" ? "EPK Privado" : "Private EPK"}
                 </ButtonLink>
               ) : null}
             </div>
@@ -90,11 +92,13 @@ export default async function ArtistDetailPage({ params }: Props) {
                 ))}
               </div>
             ) : (
-              <p className="mt-5 text-xs uppercase tracking-[0.18em] text-white/45">No social links configured yet.</p>
+              <p className="mt-5 text-xs uppercase tracking-[0.18em] text-white/45">
+                {lang === "es" ? "No hay redes configuradas todavía." : "No social links configured yet."}
+              </p>
             )}
           </div>
 
-          <div className="relative mx-auto aspect-[4/5] w-full max-w-[440px] overflow-hidden rounded-3xl border border-white/10">
+          <div className="order-first relative mx-auto aspect-[4/5] w-full max-w-[440px] overflow-hidden rounded-3xl border border-white/10 md:order-none">
             <Image src={normalizeImageUrl(artist.heroMediaUrl)} alt={artist.name} fill className="object-cover" />
           </div>
         </div>
@@ -102,9 +106,13 @@ export default async function ArtistDetailPage({ params }: Props) {
 
       <section className="mx-auto w-full max-w-7xl px-6 py-20 md:px-10">
         <SectionTitle
-          eyebrow="Discography"
-          title="Streaming & Music Videos"
-          description="Editable from admin dashboard with Spotify embed, SoundCloud, music video and interview links."
+          eyebrow={lang === "es" ? "Discografía" : "Discography"}
+          title={lang === "es" ? "Streaming y Videos Musicales" : "Streaming & Music Videos"}
+          description={
+            lang === "es"
+              ? "Editable desde admin con embed de Spotify, SoundCloud, video musical y links de entrevistas."
+              : "Editable from admin dashboard with Spotify embed, SoundCloud, music video and interview links."
+          }
         />
 
         <div className="mt-8 grid gap-4 md:grid-cols-2">
@@ -139,7 +147,7 @@ export default async function ArtistDetailPage({ params }: Props) {
 
         {interviewLinks.length > 0 ? (
           <div className="mt-6 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-            <p className="text-xs uppercase tracking-[0.2em] text-gold">Interviews</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-gold">{lang === "es" ? "Entrevistas" : "Interviews"}</p>
             <div className="mt-3 flex flex-wrap gap-3">
               {interviewLinks.map((link, index) => (
                 <a
@@ -149,7 +157,7 @@ export default async function ArtistDetailPage({ params }: Props) {
                   rel="noreferrer"
                   className="rounded-full border border-white/20 px-4 py-2 text-[11px] uppercase tracking-[0.18em] text-white/75 hover:border-gold hover:text-gold"
                 >
-                  Press Link {index + 1}
+                  {lang === "es" ? `Link de Prensa ${index + 1}` : `Press Link ${index + 1}`}
                 </a>
               ))}
             </div>
@@ -157,16 +165,18 @@ export default async function ArtistDetailPage({ params }: Props) {
         ) : null}
 
         {!spotifyEmbedSrc && !soundcloudEmbedSrc && !musicVideoSrc ? (
-          <p className="mt-5 text-sm text-white/55">No streaming embeds configured yet. Add them in Admin &gt; Artists.</p>
+          <p className="mt-5 text-sm text-white/55">
+            {lang === "es" ? "Aún no hay embeds configurados. Agrégalos en Admin > Artists." : "No streaming embeds configured yet. Add them in Admin > Artists."}
+          </p>
         ) : null}
       </section>
 
       <section className="border-y border-white/10 bg-white/[0.02]">
         <div className="mx-auto w-full max-w-7xl px-6 py-20 md:px-10">
           <SectionTitle
-            eyebrow="Tour Dates"
-            title="Upcoming Performances"
-            description="Booking and routing managed from admin."
+            eyebrow={lang === "es" ? "Fechas de Tour" : "Tour Dates"}
+            title={lang === "es" ? "Próximas Presentaciones" : "Upcoming Performances"}
+            description={lang === "es" ? "Booking y routing gestionado desde admin." : "Booking and routing managed from admin."}
           />
 
           <div className="mt-8 grid gap-3">
@@ -188,17 +198,21 @@ export default async function ArtistDetailPage({ params }: Props) {
       <section className="mx-auto grid w-full max-w-7xl gap-6 px-6 py-20 md:grid-cols-3 md:px-10">
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
           <p className="text-xs uppercase tracking-[0.22em] text-gold">Press Kit</p>
-          <p className="mt-3 text-sm text-white/70">Download official assets, bio and technical rider.</p>
+          <p className="mt-3 text-sm text-white/70">
+            {lang === "es" ? "Descarga assets oficiales, bio y technical rider." : "Download official assets, bio and technical rider."}
+          </p>
           {artist.pressKitUrl ? (
             <a href={artist.pressKitUrl} className="mt-5 inline-block text-sm text-gold underline underline-offset-4" target="_blank" rel="noreferrer">
-              Download Kit
+              {lang === "es" ? "Descargar Kit" : "Download Kit"}
             </a>
           ) : null}
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-          <p className="text-xs uppercase tracking-[0.22em] text-gold">Booking Contact</p>
-          <p className="mt-3 text-sm text-white/70">For festivals, clubs and branded partnerships.</p>
+          <p className="text-xs uppercase tracking-[0.22em] text-gold">{lang === "es" ? "Contacto Booking" : "Booking Contact"}</p>
+          <p className="mt-3 text-sm text-white/70">
+            {lang === "es" ? "Para festivales, clubs y alianzas de marca." : "For festivals, clubs and branded partnerships."}
+          </p>
           <a href={`mailto:${artist.bookingEmail}`} className="mt-5 inline-block text-sm text-gold underline underline-offset-4">
             {artist.bookingEmail}
           </a>
@@ -206,14 +220,16 @@ export default async function ArtistDetailPage({ params }: Props) {
 
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
           <p className="text-xs uppercase tracking-[0.22em] text-gold">Media Kit</p>
-          <p className="mt-3 text-sm text-white/70">Logos, photo selections and approved brand usage.</p>
+          <p className="mt-3 text-sm text-white/70">
+            {lang === "es" ? "Logos, selección de fotos y usos de marca aprobados." : "Logos, photo selections and approved brand usage."}
+          </p>
           {artist.mediaKitUrl ? (
             <a href={artist.mediaKitUrl} target="_blank" rel="noreferrer" className="mt-5 inline-block text-sm text-gold underline underline-offset-4">
-              Download Media Kit
+              {lang === "es" ? "Descargar Media Kit" : "Download Media Kit"}
             </a>
           ) : (
             <Link href="/news" className="mt-5 inline-block text-sm text-gold underline underline-offset-4">
-              View Press
+              {lang === "es" ? "Ver Prensa" : "View Press"}
             </Link>
           )}
         </div>

@@ -1,8 +1,34 @@
 import { cache } from "react";
 import { createClient as createServerSupabase } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { mockArtists, mockDemos, mockEvents, mockGallery, mockNews, mockReleases, mockTicketOrders } from "@/lib/mock-data";
-import type { Artist, DemoSubmission, EventItem, GalleryItem, NewsItem, Release, TicketOrder } from "@/lib/types";
+import {
+  mockArtists,
+  mockDemos,
+  mockEvents,
+  mockGallery,
+  mockNews,
+  mockNextUpCompetitors,
+  mockNextUpSettings,
+  mockNextUpSubmissions,
+  mockReleases,
+  mockSocialLinks,
+  mockTicketOrders
+} from "@/lib/mock-data";
+import type {
+  Artist,
+  DemoSubmission,
+  EventItem,
+  GalleryItem,
+  NewsItem,
+  NextUpCompetitor,
+  NextUpLeaderboardEntry,
+  NextUpSettings,
+  NextUpSubmission,
+  Release,
+  SocialLink,
+  TicketOrder
+} from "@/lib/types";
 
 function mapArtist(row: any): Artist {
   return {
@@ -41,6 +67,9 @@ function mapRelease(row: any): Release {
     coverUrl: row.cover_url,
     releaseDate: row.release_date,
     description: row.description,
+    artistSlug: row.artist_slug ?? null,
+    artistName: row.artist_name ?? null,
+    featuring: row.featuring ?? null,
     spotifyEmbed: row.spotify_embed,
     appleEmbed: row.apple_embed,
     youtubeEmbed: row.youtube_embed,
@@ -115,6 +144,62 @@ function mapTicketOrder(row: any): TicketOrder {
     qrCodeDataUrl: row.qr_code_data_url ?? undefined,
     status: row.status,
     createdAt: row.created_at
+  };
+}
+
+function mapNextUpSubmission(row: any): NextUpSubmission {
+  return {
+    id: row.id,
+    stageName: row.stage_name,
+    legalName: row.legal_name,
+    email: row.email,
+    phone: row.phone,
+    city: row.city,
+    demoUrl: row.demo_url,
+    socialLinks: row.social_links ?? undefined,
+    artistBio: row.artist_bio ?? undefined,
+    status: row.status,
+    createdAt: row.created_at
+  };
+}
+
+function mapNextUpCompetitor(row: any, votesCount = 0): NextUpCompetitor {
+  return {
+    id: row.id,
+    submissionId: row.submission_id ?? null,
+    stageName: row.stage_name,
+    city: row.city,
+    photoUrl: row.photo_url ?? null,
+    demoUrl: row.demo_url,
+    socialLinks: row.social_links ?? undefined,
+    artistBio: row.artist_bio ?? undefined,
+    status: row.status,
+    isWinner: Boolean(row.is_winner),
+    createdAt: row.created_at,
+    votesCount
+  };
+}
+
+function mapNextUpSettings(row: any): NextUpSettings {
+  return {
+    id: String(row.id ?? "default"),
+    liveFinalAt: row.live_final_at ?? null,
+    votingEnabled: Boolean(row.voting_enabled ?? false),
+    votingStartsAt: row.voting_starts_at ?? null,
+    votingEndsAt: row.voting_ends_at ?? null,
+    updatedAt: row.updated_at ?? undefined
+  };
+}
+
+function mapSocialLink(row: any): SocialLink {
+  return {
+    id: row.id,
+    label: row.label,
+    url: row.url,
+    sortOrder: Number(row.sort_order ?? 0),
+    isActive: Boolean(row.is_active ?? true),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
   };
 }
 
@@ -255,6 +340,11 @@ export const getNews = cache(async (): Promise<NewsItem[]> => {
   return news.filter((item) => isContentLive(item.contentStatus, item.publishAt, item.publishedAt));
 });
 
+export const getNewsBySlug = cache(async (slug: string): Promise<NewsItem | null> => {
+  const news = await getNews();
+  return news.find((item) => item.slug === slug) ?? null;
+});
+
 export const getGallery = cache(async (): Promise<GalleryItem[]> => {
   if (!isSupabaseConfigured()) {
     return mockGallery;
@@ -272,6 +362,34 @@ export const getGallery = cache(async (): Promise<GalleryItem[]> => {
   } catch {
     return mockGallery;
   }
+});
+
+export const getSocialLinksAdmin = cache(async (): Promise<SocialLink[]> => {
+  if (!isSupabaseConfigured()) {
+    return mockSocialLinks;
+  }
+
+  try {
+    const supabase = await createServerSupabase();
+    const { data, error } = await supabase
+      .from("social_links")
+      .select("*")
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
+
+    if (error || !data) {
+      return mockSocialLinks;
+    }
+
+    return data.map(mapSocialLink);
+  } catch {
+    return mockSocialLinks;
+  }
+});
+
+export const getSocialLinks = cache(async (): Promise<SocialLink[]> => {
+  const links = await getSocialLinksAdmin();
+  return links.filter((item) => item.isActive);
 });
 
 export const getCountdownRelease = cache(async (): Promise<Release | null> => {
@@ -394,5 +512,160 @@ export const getTicketOrders = cache(async (): Promise<TicketOrder[]> => {
     return data.map(mapTicketOrder);
   } catch {
     return mockTicketOrders;
+  }
+});
+
+export const getNextUpSubmissionsAdmin = cache(async (): Promise<NextUpSubmission[]> => {
+  if (!isSupabaseConfigured()) {
+    return mockNextUpSubmissions;
+  }
+
+  try {
+    const service = createServiceClient();
+    const { data, error } = await service.from("next_up_submissions").select("*").order("created_at", { ascending: false }).limit(200);
+
+    if (error || !data) {
+      return mockNextUpSubmissions;
+    }
+
+    return data.map(mapNextUpSubmission);
+  } catch {
+    return mockNextUpSubmissions;
+  }
+});
+
+async function getNextUpVotesCountMap(): Promise<Record<string, number>> {
+  try {
+    const service = createServiceClient();
+    const { data, error } = await service.from("next_up_votes").select("competitor_id");
+    if (error || !data) return {};
+    return data.reduce(
+      (acc: Record<string, number>, row: any) => {
+        const key = String(row.competitor_id ?? "");
+        if (!key) return acc;
+        acc[key] = (acc[key] ?? 0) + 1;
+        return acc;
+      },
+      {}
+    );
+  } catch {
+    return {};
+  }
+}
+
+export const getNextUpCompetitors = cache(async (): Promise<NextUpCompetitor[]> => {
+  if (!isSupabaseConfigured()) {
+    return mockNextUpCompetitors.filter((item) => item.status === "approved");
+  }
+
+  try {
+    const supabase = await createServerSupabase();
+    const { data, error } = await supabase
+      .from("next_up_competitors")
+      .select("*")
+      .eq("status", "approved")
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    if (error || !data) {
+      return mockNextUpCompetitors.filter((item) => item.status === "approved");
+    }
+
+    const voteMap = await getNextUpVotesCountMap();
+    return data.map((row: any) => mapNextUpCompetitor(row, voteMap[row.id] ?? 0));
+  } catch {
+    return mockNextUpCompetitors.filter((item) => item.status === "approved");
+  }
+});
+
+export const getNextUpCompetitorsAdmin = cache(async (): Promise<NextUpCompetitor[]> => {
+  if (!isSupabaseConfigured()) {
+    return mockNextUpCompetitors;
+  }
+
+  try {
+    const service = createServiceClient();
+    const { data, error } = await service.from("next_up_competitors").select("*").order("created_at", { ascending: false }).limit(200);
+
+    if (error || !data) {
+      return mockNextUpCompetitors;
+    }
+
+    const voteMap = await getNextUpVotesCountMap();
+    return data.map((row: any) => mapNextUpCompetitor(row, voteMap[row.id] ?? 0));
+  } catch {
+    return mockNextUpCompetitors;
+  }
+});
+
+export const getNextUpLeaderboard = cache(async (): Promise<NextUpLeaderboardEntry[]> => {
+  const competitors = await getNextUpCompetitors();
+
+  return competitors
+    .slice()
+    .sort((a, b) => b.votesCount - a.votesCount)
+    .map((item, index) => ({
+      competitorId: item.id,
+      stageName: item.stageName,
+      city: item.city,
+      photoUrl: item.photoUrl ?? null,
+      votesCount: item.votesCount,
+      rank: index + 1
+    }));
+});
+
+export const getNextUpSettings = cache(async (): Promise<NextUpSettings> => {
+  if (!isSupabaseConfigured()) {
+    return mockNextUpSettings;
+  }
+
+  try {
+    const supabase = await createServerSupabase();
+    const { data, error } = await supabase.from("next_up_settings").select("*").eq("id", "default").maybeSingle();
+
+    if (error || !data) {
+      return mockNextUpSettings;
+    }
+
+    return mapNextUpSettings(data);
+  } catch {
+    return mockNextUpSettings;
+  }
+});
+
+export const getNextUpStatsAdmin = cache(async () => {
+  if (!isSupabaseConfigured()) {
+    const totalVotes = mockNextUpCompetitors.reduce((acc, item) => acc + item.votesCount, 0);
+    return {
+      submissions: mockNextUpSubmissions.length,
+      pendingSubmissions: mockNextUpSubmissions.filter((item) => item.status === "pending").length,
+      approvedCompetitors: mockNextUpCompetitors.filter((item) => item.status === "approved").length,
+      totalVotes
+    };
+  }
+
+  try {
+    const service = createServiceClient();
+    const [{ count: submissions }, { count: pendingSubmissions }, { count: approvedCompetitors }, { count: votes }] = await Promise.all([
+      service.from("next_up_submissions").select("id", { count: "exact", head: true }),
+      service.from("next_up_submissions").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      service.from("next_up_competitors").select("id", { count: "exact", head: true }).eq("status", "approved"),
+      service.from("next_up_votes").select("id", { count: "exact", head: true })
+    ]);
+
+    return {
+      submissions: submissions ?? 0,
+      pendingSubmissions: pendingSubmissions ?? 0,
+      approvedCompetitors: approvedCompetitors ?? 0,
+      totalVotes: votes ?? 0
+    };
+  } catch {
+    const totalVotes = mockNextUpCompetitors.reduce((acc, item) => acc + item.votesCount, 0);
+    return {
+      submissions: mockNextUpSubmissions.length,
+      pendingSubmissions: mockNextUpSubmissions.filter((item) => item.status === "pending").length,
+      approvedCompetitors: mockNextUpCompetitors.filter((item) => item.status === "approved").length,
+      totalVotes
+    };
   }
 });

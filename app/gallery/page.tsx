@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import { SectionTitle } from "@/components/shared/section-title";
+import { getSiteLanguage } from "@/lib/i18n/server";
 import { getGallery } from "@/lib/queries";
 import { normalizeImageUrl } from "@/lib/utils";
 
@@ -10,14 +11,19 @@ export const metadata: Metadata = {
 };
 
 export default async function GalleryPage() {
+  const lang = await getSiteLanguage();
   const gallery = await getGallery();
 
   return (
     <div className="mx-auto w-full max-w-7xl px-6 py-20 md:px-10">
       <SectionTitle
-        eyebrow="Visual Gallery"
-        title="Scenes"
-        description="From studio sessions to arena moments: visual storytelling with label-grade polish."
+        eyebrow={lang === "es" ? "Galería Visual" : "Visual Gallery"}
+        title={lang === "es" ? "Escenas" : "Scenes"}
+        description={
+          lang === "es"
+            ? "De sesiones en estudio a momentos de tarima: storytelling visual con estándar de major label."
+            : "From studio sessions to arena moments: visual storytelling with label-grade polish."
+        }
       />
 
       <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-4">

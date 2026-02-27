@@ -4,6 +4,7 @@ import "./globals.css";
 import { SiteHeader } from "@/components/shared/site-header";
 import { SiteFooter } from "@/components/shared/site-footer";
 import { TermsConsentModal } from "@/components/shared/terms-consent-modal";
+import { getSiteLanguage } from "@/lib/i18n/server";
 import { absoluteUrl } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
     template: "%s | EM Records LLC"
   },
   description:
-    "EM Records LLC is a dark modern latin urban label with international vision: artists, releases, events, publishing, licensing and cultural movement.",
+    "EM Records LLC es una disquera urbana latina moderna con visión internacional: artistas, lanzamientos, eventos, publishing y licensing.",
   keywords: ["EM Records", "latin urban label", "reggaeton", "trap latino", "music publishing", "distribution"],
   openGraph: {
     title: "EM Records LLC",
@@ -28,7 +29,7 @@ export const metadata: Metadata = {
         alt: "EM Records LLC"
       }
     ],
-    locale: "en_US",
+    locale: "es_US",
     type: "website"
   },
   twitter: {
@@ -39,13 +40,15 @@ export const metadata: Metadata = {
   }
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children
 }: Readonly<{
   children: ReactNode;
 }>) {
+  const lang = await getSiteLanguage();
+
   return (
-    <html lang="en">
+    <html lang={lang}>
       <body className="font-sans antialiased">
         <TermsConsentModal />
         <SiteHeader />

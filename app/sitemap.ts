@@ -12,6 +12,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "/releases",
     "/events",
     "/news",
+    "/killeen-next-up",
     "/gallery",
     "/publishing",
     "/licensing",
@@ -33,7 +34,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   const newsRoutes: MetadataRoute.Sitemap = news.map((item) => ({
-    url: absoluteUrl(`/news#${item.slug}`),
+    url: absoluteUrl(`/news/${item.slug}`),
     lastModified: new Date(item.publishedAt),
     changeFrequency: "monthly",
     priority: 0.6

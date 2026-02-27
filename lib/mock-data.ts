@@ -1,4 +1,16 @@
-import type { Artist, DemoSubmission, EventItem, GalleryItem, NewsItem, Release, TicketOrder } from "@/lib/types";
+import type {
+  Artist,
+  DemoSubmission,
+  EventItem,
+  GalleryItem,
+  NewsItem,
+  NextUpCompetitor,
+  NextUpSettings,
+  NextUpSubmission,
+  Release,
+  SocialLink,
+  TicketOrder
+} from "@/lib/types";
 
 export const mockArtists: Artist[] = [
   {
@@ -86,6 +98,7 @@ export const mockReleases: Release[] = [
     coverUrl: "/images/release-create-it.jpg",
     releaseDate: "2026-03-21",
     description: "Primer manifiesto sonico de EM Records para 2026.",
+    artistSlug: "nova-k",
     spotifyEmbed: "https://open.spotify.com/embed/track/7ouMYWpwJ422jRcDASZB7P",
     appleEmbed: "https://embed.music.apple.com/us/album/fake/123456789",
     youtubeEmbed: "https://www.youtube.com/embed/ScMzIvxBSi4",
@@ -100,6 +113,7 @@ export const mockReleases: Release[] = [
     coverUrl: "/images/release-midnight.jpg",
     releaseDate: "2025-12-11",
     description: "EP colaborativo entre NOVA K y LUNA VEGA.",
+    artistSlug: "luna-vega",
     spotifyEmbed: "https://open.spotify.com/embed/album/1DFixLWuPkv3KT3TnV35m3",
     featured: false,
     contentStatus: "scheduled",
@@ -229,5 +243,83 @@ export const mockTicketOrders: TicketOrder[] = [
     qrCodeDataUrl: "data:image/png;base64,mock",
     status: "paid",
     createdAt: "2026-02-25T16:40:00.000Z"
+  }
+];
+
+export const mockNextUpSubmissions: NextUpSubmission[] = [
+  {
+    id: "ns1",
+    stageName: "RAY KILLEEN",
+    legalName: "Ray Morales",
+    email: "ray@example.com",
+    phone: "+1 254-555-0192",
+    city: "Killeen, TX",
+    demoUrl: "https://soundcloud.com",
+    socialLinks: "https://instagram.com/raykilleen",
+    artistBio: "Latin trap artist from Killeen with melodic hooks and live energy.",
+    status: "pending",
+    createdAt: "2026-02-20T18:20:00.000Z"
+  }
+];
+
+export const mockNextUpCompetitors: NextUpCompetitor[] = [
+  {
+    id: "nc1",
+    submissionId: "ns1",
+    stageName: "RAY KILLEEN",
+    city: "Killeen, TX",
+    photoUrl: "/images/artist-novak.jpg",
+    demoUrl: "https://open.spotify.com/track/7ouMYWpwJ422jRcDASZB7P",
+    socialLinks: "https://instagram.com/raykilleen",
+    artistBio: "Latin trap artist from Killeen with melodic hooks and live energy.",
+    status: "approved",
+    isWinner: false,
+    createdAt: "2026-02-20T18:50:00.000Z",
+    votesCount: 124
+  },
+  {
+    id: "nc2",
+    stageName: "LA MUSA 254",
+    city: "Harker Heights, TX",
+    photoUrl: "/images/artist-luna.jpg",
+    demoUrl: "https://www.youtube.com/watch?v=ScMzIvxBSi4",
+    socialLinks: "https://instagram.com/lamusa254",
+    artistBio: "Urban latin singer-songwriter with cinematic hooks.",
+    status: "approved",
+    isWinner: false,
+    createdAt: "2026-02-21T10:15:00.000Z",
+    votesCount: 98
+  }
+];
+
+export const mockNextUpSettings: NextUpSettings = {
+  id: "default",
+  liveFinalAt: null,
+  votingEnabled: false,
+  votingStartsAt: "2026-03-13T05:00:00.000Z",
+  votingEndsAt: "2026-04-04T04:59:59.000Z"
+};
+
+export const mockSocialLinks: SocialLink[] = [
+  {
+    id: "sl-ig",
+    label: "Instagram",
+    url: "https://www.instagram.com/emrecordsllc",
+    sortOrder: 1,
+    isActive: true
+  },
+  {
+    id: "sl-yt",
+    label: "YouTube",
+    url: "https://www.youtube.com/@emrecordsllc",
+    sortOrder: 2,
+    isActive: true
+  },
+  {
+    id: "sl-fb",
+    label: "Facebook",
+    url: "https://www.facebook.com/emrecords020288",
+    sortOrder: 3,
+    isActive: true
   }
 ];

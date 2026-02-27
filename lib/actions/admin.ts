@@ -82,6 +82,11 @@ async function uploadFileToBucket(
   return publicUrl;
 }
 
+function revalidateSocialLinkPaths() {
+  revalidatePath("/admin/social-links");
+  revalidatePath("/");
+}
+
 export async function signInAdminAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
@@ -199,8 +204,21 @@ export async function upsertReleaseAction(formData: FormData) {
   const spotifyEmbedInput = String(formData.get("spotifyEmbed") ?? "").trim();
   const appleEmbedInput = String(formData.get("appleEmbed") ?? "").trim();
   const youtubeEmbedInput = String(formData.get("youtubeEmbed") ?? "").trim();
+  const artistSlugInput = String(formData.get("artistSlug") ?? "").trim();
+  const artistNameInput = String(formData.get("artistName") ?? "").trim();
+  const featuringInput = String(formData.get("featuring") ?? "")
+    .trim()
+    .replace(/^feat\.?\s*/i, "");
   const contentStatusInput = String(formData.get("contentStatus") ?? "published").trim();
   const publishAtInput = String(formData.get("publishAt") ?? "").trim();
+  let resolvedArtistName = artistNameInput || null;
+
+  if (!resolvedArtistName && artistSlugInput) {
+    const { data: linkedArtist, error: linkedArtistError } = await supabase.from("artists").select("name").eq("slug", artistSlugInput).maybeSingle();
+    if (!linkedArtistError && linkedArtist?.name) {
+      resolvedArtistName = linkedArtist.name;
+    }
+  }
 
   const payloadForUpsert: Record<string, unknown> = {
     id: id || undefined,
@@ -209,6 +227,9 @@ export async function upsertReleaseAction(formData: FormData) {
     cover_url: String(formData.get("coverUrl") ?? "").trim(),
     release_date: String(formData.get("releaseDate") ?? "").trim(),
     description: String(formData.get("description") ?? "").trim(),
+    artist_slug: artistSlugInput || null,
+    artist_name: resolvedArtistName,
+    featuring: featuringInput || null,
     spotify_embed: spotifyEmbedInput ? normalizeSpotifyEmbedUrl(spotifyEmbedInput) : null,
     apple_embed: appleEmbedInput ? normalizeAppleMusicEmbedUrl(appleEmbedInput) : null,
     youtube_embed: youtubeEmbedInput ? normalizeYouTubeEmbedUrl(youtubeEmbedInput) : null,
@@ -230,6 +251,11 @@ export async function upsertReleaseAction(formData: FormData) {
 
     const missingColumn = String(error.message || "").match(/'([^']+)'/)?.[1];
     if (!missingColumn || !(missingColumn in payloadForUpsert)) break;
+    if (missingColumn === "artist_slug") {
+      throw new Error(
+        `Missing '${missingColumn}' column in releases. Run the latest Supabase SQL migration for releases and retry.`
+      );
+    }
     delete payloadForUpsert[missingColumn];
   }
 
@@ -328,4 +354,296 @@ export async function updateDemoStatusAction(formData: FormData) {
   }
 
   revalidatePath("/admin/demos");
+}
+
+export async function updateNextUpSubmissionStatusAction(formData: FormData) {
+  const supabase = await requireAdminClient();
+  const id = String(formData.get("id") ?? "").trim();
+  const status = String(formData.get("status") ?? "").trim();
+  const makeCompetitor = String(formData.get("makeCompetitor") ?? "") === "true";
+
+  if (!id || !["pending", "approved", "rejected"].includes(status)) {
+    throw new Error("Invalid submission update.");
+  }
+
+  const { data: submission, error: submissionError } = await supabase.from("next_up_submissions").select("*").eq("id", id).maybeSingle();
+  if (submissionError || !submission) {
+    throw new Error(submissionError?.message ?? "Submission not found.");
+  }
+
+  const { error } = await supabase.from("next_up_submissions").update({ status }).eq("id", id);
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (status === "approved" && makeCompetitor) {
+    const { data: existingCompetitor } = await supabase
+      .from("next_up_competitors")
+      .select("id")
+      .eq("submission_id", submission.id)
+      .maybeSingle();
+
+    if (existingCompetitor?.id) {
+      const { error: competitorUpdateError } = await supabase
+        .from("next_up_competitors")
+        .update({
+          stage_name: submission.stage_name,
+          city: submission.city,
+          demo_url: submission.demo_url,
+          social_links: submission.social_links ?? null,
+          artist_bio: submission.artist_bio ?? null,
+          status: "approved"
+        })
+        .eq("id", existingCompetitor.id);
+
+      if (competitorUpdateError) {
+        throw new Error(competitorUpdateError.message);
+      }
+    } else {
+      const { error: competitorInsertError } = await supabase.from("next_up_competitors").insert({
+        submission_id: submission.id,
+        stage_name: submission.stage_name,
+        city: submission.city,
+        demo_url: submission.demo_url,
+        social_links: submission.social_links ?? null,
+        artist_bio: submission.artist_bio ?? null,
+        status: "approved"
+      });
+
+      if (competitorInsertError) {
+        throw new Error(competitorInsertError.message);
+      }
+    }
+  }
+
+  if (status === "rejected" || status === "pending") {
+    await supabase.from("next_up_competitors").update({ status: "hidden" }).eq("submission_id", submission.id);
+  }
+
+  revalidatePath("/admin/next-up");
+  revalidatePath("/killeen-next-up");
+}
+
+export async function upsertNextUpCompetitorAction(formData: FormData) {
+  const supabase = await requireAdminClient();
+  const id = String(formData.get("id") ?? "").trim();
+  const photoFileValue = formData.get("photoFile");
+  const photoFile = photoFileValue instanceof File && photoFileValue.size > 0 ? photoFileValue : null;
+  const photoUrlInput = String(formData.get("photoUrl") ?? "").trim();
+  const uploadedPhotoUrl = await uploadFileToBucket(supabase, photoFile, "next-up-media", "killeen-next-up/photos");
+
+  const payloadForUpsert: Record<string, unknown> = {
+    id: id || undefined,
+    stage_name: String(formData.get("stageName") ?? "").trim(),
+    city: String(formData.get("city") ?? "").trim(),
+    demo_url: String(formData.get("demoUrl") ?? "").trim(),
+    photo_url: uploadedPhotoUrl ?? (photoUrlInput || null),
+    social_links: String(formData.get("socialLinks") ?? "").trim() || null,
+    artist_bio: String(formData.get("artistBio") ?? "").trim() || null,
+    status: String(formData.get("status") ?? "approved").trim() || "approved",
+    is_winner: String(formData.get("isWinner") ?? "") === "on"
+  };
+
+  if (payloadForUpsert.is_winner) {
+    await supabase.from("next_up_competitors").update({ is_winner: false }).eq("is_winner", true);
+  }
+
+  let error: { message?: string } | null = null;
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const result = await supabase.from("next_up_competitors").upsert(payloadForUpsert);
+    error = result.error;
+
+    if (!error) break;
+
+    const missingColumn = String(error.message || "").match(/'([^']+)'/)?.[1];
+    if (!missingColumn || !(missingColumn in payloadForUpsert)) break;
+    delete payloadForUpsert[missingColumn];
+  }
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/admin/next-up");
+  revalidatePath("/killeen-next-up");
+}
+
+export async function resetNextUpVotesAction(formData: FormData) {
+  const supabase = await requireAdminClient();
+  const competitorId = String(formData.get("competitorId") ?? "").trim();
+
+  if (competitorId) {
+    await supabase.from("next_up_votes").delete().eq("competitor_id", competitorId);
+  } else {
+    await supabase.from("next_up_votes").delete().neq("id", "");
+  }
+
+  revalidatePath("/admin/next-up");
+  revalidatePath("/killeen-next-up");
+}
+
+export async function announceNextUpWinnerAction(formData: FormData) {
+  const supabase = await requireAdminClient();
+  const competitorId = String(formData.get("competitorId") ?? "").trim();
+
+  if (!competitorId) {
+    throw new Error("Missing competitor id.");
+  }
+
+  await supabase.from("next_up_competitors").update({ is_winner: false }).eq("is_winner", true);
+  const { error } = await supabase.from("next_up_competitors").update({ is_winner: true, status: "approved" }).eq("id", competitorId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/admin/next-up");
+  revalidatePath("/killeen-next-up");
+}
+
+export async function updateNextUpSettingsAction(formData: FormData) {
+  const supabase = await requireAdminClient();
+  const hasLiveFinalInput = formData.has("liveFinalAt");
+  const hasVotingEnabledInput = formData.has("votingEnabled");
+  const hasVotingStartsAtInput = formData.has("votingStartsAt");
+  const hasVotingEndsAtInput = formData.has("votingEndsAt");
+  const liveFinalAtInput = String(formData.get("liveFinalAt") ?? "").trim();
+  const votingStartsAtInput = String(formData.get("votingStartsAt") ?? "").trim();
+  const votingEndsAtInput = String(formData.get("votingEndsAt") ?? "").trim();
+  const votingEnabledInputs = formData
+    .getAll("votingEnabled")
+    .map((item) => String(item).trim().toLowerCase())
+    .filter(Boolean);
+
+  const { data: currentSettings } = await supabase
+    .from("next_up_settings")
+    .select("live_final_at, voting_enabled, voting_starts_at, voting_ends_at")
+    .eq("id", "default")
+    .maybeSingle();
+
+  let liveFinalAt: string | null = currentSettings?.live_final_at ?? null;
+  let votingEnabled: boolean = Boolean(currentSettings?.voting_enabled ?? false);
+  let votingStartsAt: string | null = currentSettings?.voting_starts_at ?? null;
+  let votingEndsAt: string | null = currentSettings?.voting_ends_at ?? null;
+
+  if (hasLiveFinalInput) {
+    if (!liveFinalAtInput) {
+      liveFinalAt = null;
+    } else {
+      const timestamp = Date.parse(liveFinalAtInput);
+      if (Number.isNaN(timestamp)) {
+        throw new Error("Invalid live final date.");
+      }
+      liveFinalAt = new Date(timestamp).toISOString();
+    }
+  }
+
+  if (hasVotingEnabledInput) {
+    votingEnabled = votingEnabledInputs.includes("on") || votingEnabledInputs.includes("true") || votingEnabledInputs.includes("1");
+  }
+
+  if (hasVotingStartsAtInput) {
+    if (!votingStartsAtInput) {
+      votingStartsAt = null;
+    } else {
+      const timestamp = Date.parse(votingStartsAtInput);
+      if (Number.isNaN(timestamp)) {
+        throw new Error("Invalid voting start date.");
+      }
+      votingStartsAt = new Date(timestamp).toISOString();
+    }
+  }
+
+  if (hasVotingEndsAtInput) {
+    if (!votingEndsAtInput) {
+      votingEndsAt = null;
+    } else {
+      const timestamp = Date.parse(votingEndsAtInput);
+      if (Number.isNaN(timestamp)) {
+        throw new Error("Invalid voting end date.");
+      }
+      votingEndsAt = new Date(timestamp).toISOString();
+    }
+  }
+
+  const payloadForUpsert: Record<string, unknown> = {
+    id: "default",
+    live_final_at: liveFinalAt,
+    voting_enabled: votingEnabled,
+    voting_starts_at: votingStartsAt,
+    voting_ends_at: votingEndsAt
+  };
+
+  let error: { message?: string } | null = null;
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const result = await supabase.from("next_up_settings").upsert(payloadForUpsert, { onConflict: "id", ignoreDuplicates: false });
+    error = result.error;
+    if (!error) break;
+    const missingColumn = String(error.message || "").match(/'([^']+)'/)?.[1];
+    if (!missingColumn || !(missingColumn in payloadForUpsert)) break;
+    delete payloadForUpsert[missingColumn];
+  }
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/admin/next-up");
+  revalidatePath("/killeen-next-up");
+}
+
+export async function upsertSocialLinkAction(formData: FormData) {
+  const supabase = await requireAdminClient();
+  const id = String(formData.get("id") ?? "").trim();
+  const label = String(formData.get("label") ?? "").trim();
+  const url = String(formData.get("url") ?? "").trim();
+  const sortOrderInput = Number.parseInt(String(formData.get("sortOrder") ?? "0"), 10);
+  const isActive = String(formData.get("isActive") ?? "") === "on";
+
+  if (!label || !url) {
+    throw new Error("Label and URL are required.");
+  }
+
+  const payloadForUpsert: Record<string, unknown> = {
+    id: id || undefined,
+    label,
+    url,
+    sort_order: Number.isFinite(sortOrderInput) ? sortOrderInput : 0,
+    is_active: isActive
+  };
+
+  let error: { message?: string } | null = null;
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const result = await supabase.from("social_links").upsert(payloadForUpsert);
+    error = result.error;
+
+    if (!error) break;
+
+    const missingColumn = String(error.message || "").match(/'([^']+)'/)?.[1];
+    if (!missingColumn || !(missingColumn in payloadForUpsert)) break;
+    delete payloadForUpsert[missingColumn];
+  }
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidateSocialLinkPaths();
+}
+
+export async function deleteSocialLinkAction(formData: FormData) {
+  const supabase = await requireAdminClient();
+  const id = String(formData.get("id") ?? "").trim();
+
+  if (!id) {
+    throw new Error("Missing social link id.");
+  }
+
+  const { error } = await supabase.from("social_links").delete().eq("id", id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidateSocialLinkPaths();
 }

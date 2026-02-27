@@ -32,6 +32,9 @@ export type Release = {
   coverUrl: string;
   releaseDate: string;
   description: string;
+  artistSlug?: string | null;
+  artistName?: string | null;
+  featuring?: string | null;
   spotifyEmbed?: string;
   appleEmbed?: string;
   youtubeEmbed?: string;
@@ -96,4 +99,61 @@ export type TicketOrder = {
   qrCodeDataUrl?: string;
   status: "paid" | "refunded" | "cancelled";
   createdAt: string;
+};
+
+export type NextUpSubmission = {
+  id: string;
+  stageName: string;
+  legalName: string;
+  email: string;
+  phone: string;
+  city: string;
+  demoUrl: string;
+  socialLinks?: string;
+  artistBio?: string;
+  status: "pending" | "approved" | "rejected";
+  createdAt: string;
+};
+
+export type NextUpCompetitor = {
+  id: string;
+  submissionId?: string | null;
+  stageName: string;
+  city: string;
+  photoUrl?: string | null;
+  demoUrl: string;
+  socialLinks?: string | null;
+  artistBio?: string | null;
+  status: "approved" | "hidden";
+  isWinner?: boolean;
+  createdAt: string;
+  votesCount: number;
+};
+
+export type NextUpLeaderboardEntry = {
+  competitorId: string;
+  stageName: string;
+  city: string;
+  photoUrl?: string | null;
+  votesCount: number;
+  rank: number;
+};
+
+export type NextUpSettings = {
+  id: string;
+  liveFinalAt?: string | null;
+  votingEnabled?: boolean;
+  votingStartsAt?: string | null;
+  votingEndsAt?: string | null;
+  updatedAt?: string;
+};
+
+export type SocialLink = {
+  id: string;
+  label: string;
+  url: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 };

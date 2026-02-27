@@ -1,12 +1,12 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { upsertReleaseAction } from "@/lib/actions/admin";
 import { requireAdminPage } from "@/lib/auth";
-import { getReleasesAdmin } from "@/lib/queries";
+import { getArtists, getReleasesAdmin } from "@/lib/queries";
 import { formatDate } from "@/lib/utils";
 
 export default async function AdminReleasesPage() {
   await requireAdminPage();
-  const releases = await getReleasesAdmin();
+  const [releases, artists] = await Promise.all([getReleasesAdmin(), getArtists()]);
 
   return (
     <AdminShell>
@@ -26,6 +26,24 @@ export default async function AdminReleasesPage() {
           </select>
           <input name="coverUrl" required placeholder="Cover URL" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
           <input type="date" name="releaseDate" required className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
+          <select name="artistSlug" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold md:col-span-2">
+            <option value="">No linked artist</option>
+            {artists.map((artist) => (
+              <option key={artist.id} value={artist.slug}>
+                {artist.name}
+              </option>
+            ))}
+          </select>
+          <input
+            name="artistName"
+            placeholder="Display artist name (optional)"
+            className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold"
+          />
+          <input
+            name="featuring"
+            placeholder="Featuring (optional)"
+            className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold"
+          />
           <textarea name="description" rows={4} required placeholder="Description" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold md:col-span-2" />
           <input name="spotifyEmbed" placeholder="Spotify embed URL" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
           <input name="appleEmbed" placeholder="Apple embed URL" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
@@ -88,6 +106,30 @@ export default async function AdminReleasesPage() {
                 defaultValue={String(release.releaseDate).slice(0, 10)}
                 className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold"
               />
+              <select
+                name="artistSlug"
+                defaultValue={release.artistSlug ?? ""}
+                className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold md:col-span-2"
+              >
+                <option value="">No linked artist</option>
+                {artists.map((artist) => (
+                  <option key={artist.id} value={artist.slug}>
+                    {artist.name}
+                  </option>
+                ))}
+              </select>
+              <input
+                name="artistName"
+                defaultValue={release.artistName ?? artists.find((artist) => artist.slug === release.artistSlug)?.name ?? ""}
+                placeholder="Display artist name (optional)"
+                className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold"
+              />
+              <input
+                name="featuring"
+                defaultValue={release.featuring ?? ""}
+                placeholder="Featuring (optional)"
+                className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold"
+              />
               <textarea
                 name="description"
                 rows={4}
@@ -148,7 +190,10 @@ export default async function AdminReleasesPage() {
         <div className="mt-4 space-y-2">
           {releases.map((release) => (
             <div key={release.id} className="rounded-xl border border-white/10 px-4 py-3 text-sm text-white/80">
-              {release.title} · {release.format} · {formatDate(release.releaseDate)} · {release.contentStatus ?? "published"} {release.featured ? "· FEATURED" : ""}
+              {release.title} · {release.format} · {formatDate(release.releaseDate)} ·{" "}
+              {artists.find((artist) => artist.slug === release.artistSlug)?.name ?? release.artistName ?? "No artist"} ·{" "}
+              {release.featuring ? `feat. ${release.featuring} · ` : ""}
+              {release.contentStatus ?? "published"} {release.featured ? "· FEATURED" : ""}
             </div>
           ))}
         </div>

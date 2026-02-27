@@ -1,26 +1,33 @@
 import type { Metadata } from "next";
 import { submitDemoAction } from "@/lib/actions/site";
 import { SectionTitle } from "@/components/shared/section-title";
+import { getSiteLanguage } from "@/lib/i18n/server";
 
 export const metadata: Metadata = {
   title: "Join EM",
   description: "Submit your demo to EM Records A&R."
 };
 
-export default function JoinPage() {
+export default async function JoinPage() {
+  const lang = await getSiteLanguage();
+
   return (
     <div className="mx-auto w-full max-w-7xl px-6 py-20 md:px-10">
       <SectionTitle
-        eyebrow="Join EM"
-        title="Demo Submissions"
-        description="Upload your track and enter the official review pipeline. Status can be tracked in admin as pending, approved or rejected."
+        eyebrow={lang === "es" ? "Únete a EM" : "Join EM"}
+        title={lang === "es" ? "Envío de Demos" : "Demo Submissions"}
+        description={
+          lang === "es"
+            ? "Sube tu track y entra al pipeline oficial de revisión. El estado se gestiona en admin: pendiente, aprobado o rechazado."
+            : "Upload your track and enter the official review pipeline. Status can be tracked in admin as pending, approved or rejected."
+        }
       />
 
       <form action={submitDemoAction} className="mt-10 grid gap-4 rounded-3xl border border-white/10 bg-white/[0.02] p-6 md:grid-cols-2">
         <input
           name="artistName"
           required
-          placeholder="Artist Name"
+          placeholder={lang === "es" ? "Nombre Artístico" : "Artist Name"}
           className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold"
         />
         <input
@@ -33,7 +40,7 @@ export default function JoinPage() {
         <input
           name="trackTitle"
           required
-          placeholder="Track Title"
+          placeholder={lang === "es" ? "Título del Track" : "Track Title"}
           className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold md:col-span-2"
         />
         <input
@@ -46,14 +53,14 @@ export default function JoinPage() {
         <textarea
           name="message"
           rows={5}
-          placeholder="Tell us your vision"
+          placeholder={lang === "es" ? "Cuéntanos tu visión" : "Tell us your vision"}
           className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold md:col-span-2"
         />
         <button
           type="submit"
           className="rounded-full border border-gold bg-gold px-6 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-black md:col-span-2 md:justify-self-start"
         >
-          Submit Demo
+          {lang === "es" ? "Enviar Demo" : "Submit Demo"}
         </button>
       </form>
     </div>

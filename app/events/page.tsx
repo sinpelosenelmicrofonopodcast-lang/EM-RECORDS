@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { SectionTitle } from "@/components/shared/section-title";
+import { getSiteLanguage } from "@/lib/i18n/server";
 import { getUpcomingEvents } from "@/lib/queries";
 import { formatDate } from "@/lib/utils";
 
@@ -9,14 +10,15 @@ export const metadata: Metadata = {
 };
 
 export default async function EventsPage() {
+  const lang = await getSiteLanguage();
   const events = await getUpcomingEvents();
 
   return (
     <div className="mx-auto w-full max-w-7xl px-6 py-20 md:px-10">
       <SectionTitle
-        eyebrow="Events / Concerts"
-        title="Tour Calendar"
-        description="Integrated ticket sales with Stripe, QR validation and sponsor tiers."
+        eyebrow={lang === "es" ? "Eventos / Conciertos" : "Events / Concerts"}
+        title={lang === "es" ? "Calendario de Tours" : "Tour Calendar"}
+        description={lang === "es" ? "Venta de tickets integrada con Stripe, validación QR y sponsors por niveles." : "Integrated ticket sales with Stripe, QR validation and sponsor tiers."}
       />
 
       <div className="mt-10 grid gap-5">
@@ -32,8 +34,8 @@ export default async function EventsPage() {
               </div>
 
               <div className="mt-5 md:mt-0 md:text-right">
-                <p className="text-xs uppercase tracking-[0.2em] text-white/55">Sponsors</p>
-                <p className="mt-1 text-sm text-white/70">{event.sponsors.join(" · ") || "TBA"}</p>
+                <p className="text-xs uppercase tracking-[0.2em] text-white/55">{lang === "es" ? "Sponsors" : "Sponsors"}</p>
+                <p className="mt-1 text-sm text-white/70">{event.sponsors.join(" · ") || (lang === "es" ? "Por anunciar" : "TBA")}</p>
               </div>
             </div>
 
@@ -47,7 +49,7 @@ export default async function EventsPage() {
                     type="submit"
                     className="rounded-full border border-gold bg-gold px-6 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-black"
                   >
-                    Buy Tickets
+                    {lang === "es" ? "Comprar Tickets" : "Buy Tickets"}
                   </button>
                 </form>
               ) : null}
@@ -59,7 +61,7 @@ export default async function EventsPage() {
                   rel="noreferrer"
                   className="rounded-full border border-white/20 px-6 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-white/80"
                 >
-                  External Tickets
+                  {lang === "es" ? "Tickets Externos" : "External Tickets"}
                 </a>
               ) : null}
             </div>
