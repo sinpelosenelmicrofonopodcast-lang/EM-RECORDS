@@ -171,10 +171,15 @@ export default async function KilleenNextUpPage({ searchParams }: Props) {
 
       <section className="mx-auto w-full max-w-7xl px-6 pt-12 md:px-10">
         <div className="relative overflow-hidden rounded-3xl border border-gold/35 bg-black shadow-2xl shadow-black/50">
-          <div className="relative aspect-[16/10] md:aspect-[16/7]">
-            <img src="/images/killeen-next-up-banner.png" alt="Convocatoria Killeen Next Up" className="h-full w-full object-cover" loading="eager" />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/45 via-black/15 to-transparent" />
-          </div>
+          <Image
+            src="/images/killeen-next-up-banner.png"
+            alt="Convocatoria Killeen Next Up"
+            width={1536}
+            height={1024}
+            priority
+            className="h-auto w-full object-contain"
+          />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/22 via-transparent to-black/8" />
         </div>
       </section>
 
