@@ -6,10 +6,10 @@ import { SiteFooter } from "@/components/shared/site-footer";
 import { TermsConsentModal } from "@/components/shared/terms-consent-modal";
 import { getSiteLanguage } from "@/lib/i18n/server";
 import { getSocialLinks } from "@/lib/queries";
-import { absoluteUrl, toJsonLd } from "@/lib/utils";
+import { absoluteUrl, getSiteOrigin, toJsonLd } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+  metadataBase: new URL(getSiteOrigin()),
   applicationName: "EM Records LLC",
   title: {
     default: "EM Records LLC | Don\'t chase the wave. Create it.",

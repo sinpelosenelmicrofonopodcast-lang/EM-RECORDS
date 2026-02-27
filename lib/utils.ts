@@ -4,8 +4,31 @@ export function cn(...inputs: ClassValue[]) {
   return clsx(inputs);
 }
 
+const PRODUCTION_SITE_URL = "https://emrecordsmusic.com";
+
+export function getSiteOrigin(): string {
+  const configured = (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.SITE_URL ?? "").trim();
+
+  if (!configured) {
+    return process.env.NODE_ENV === "development" ? "http://localhost:3000" : PRODUCTION_SITE_URL;
+  }
+
+  try {
+    const parsed = new URL(configured.startsWith("http") ? configured : `https://${configured}`);
+
+    // Prevent production canonical/sitemap URLs from drifting to *.vercel.app.
+    if (process.env.NODE_ENV === "production" && parsed.hostname.endsWith(".vercel.app")) {
+      return PRODUCTION_SITE_URL;
+    }
+
+    return parsed.origin;
+  } catch {
+    return process.env.NODE_ENV === "development" ? "http://localhost:3000" : PRODUCTION_SITE_URL;
+  }
+}
+
 export function absoluteUrl(path: string): string {
-  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const base = getSiteOrigin();
   return `${base.replace(/\/$/, "")}${path}`;
 }
 
