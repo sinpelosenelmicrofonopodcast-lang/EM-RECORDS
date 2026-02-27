@@ -1,0 +1,12 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="256" height="256" rx="38" fill="black"/>
+  <text x="50%" y="122" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="90" fill="white">EM</text>
+  <rect x="56" y="172" width="12" height="6" fill="white"/>
+  <rect x="74" y="168" width="12" height="10" fill="white"/>
+  <rect x="92" y="160" width="12" height="18" fill="white"/>
+  <rect x="110" y="148" width="12" height="30" fill="white"/>
+  <rect x="128" y="140" width="12" height="38" fill="white"/>
+  <rect x="146" y="148" width="12" height="30" fill="white"/>
+  <rect x="164" y="160" width="12" height="18" fill="white"/>
+  <rect x="182" y="168" width="12" height="10" fill="white"/>
+</svg>
