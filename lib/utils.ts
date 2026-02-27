@@ -17,7 +17,10 @@ export function getSiteOrigin(): string {
     const parsed = new URL(configured.startsWith("http") ? configured : `https://${configured}`);
 
     // Prevent production canonical/sitemap URLs from drifting to *.vercel.app.
-    if (process.env.NODE_ENV === "production" && parsed.hostname.endsWith(".vercel.app")) {
+    if (
+      process.env.NODE_ENV === "production" &&
+      (parsed.hostname.endsWith(".vercel.app") || parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1")
+    ) {
       return PRODUCTION_SITE_URL;
     }
 
