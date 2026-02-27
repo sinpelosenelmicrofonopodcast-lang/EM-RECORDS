@@ -4,10 +4,12 @@ import { SectionTitle } from "@/components/shared/section-title";
 import { getSiteLanguage } from "@/lib/i18n/server";
 import { getArtists, getReleases } from "@/lib/queries";
 import {
+  absoluteUrl,
   formatDate,
   normalizeAppleMusicEmbedUrl,
   normalizeSpotifyEmbedUrl,
-  normalizeYouTubeEmbedUrl
+  normalizeYouTubeEmbedUrl,
+  toJsonLd
 } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -41,9 +43,29 @@ export default async function ReleasesPage() {
       youtubeEmbed: youtubeEmbedSrc
     };
   });
+  const releasesSchema = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: lang === "es" ? "Últimos Lanzamientos EM Records" : "EM Records Latest Releases",
+    itemListElement: catalogItems.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      item: {
+        "@type": "MusicRecording",
+        name: item.title,
+        byArtist: {
+          "@type": "MusicGroup",
+          name: item.artistName
+        },
+        datePublished: releases[index]?.releaseDate,
+        image: /^https?:\/\//i.test(item.coverUrl) ? item.coverUrl : absoluteUrl(item.coverUrl)
+      }
+    }))
+  };
 
   return (
     <div className="mx-auto w-full max-w-7xl px-6 py-20 md:px-10">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLd(releasesSchema) }} />
       <SectionTitle
         eyebrow={lang === "es" ? "Discografía" : "Discography"}
         title={lang === "es" ? "Últimos Lanzamientos" : "Latest Releases"}

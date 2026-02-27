@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { normalizeSiteLanguage, SITE_LANG_COOKIE, type SiteLanguage } from "@/lib/i18n";
+import { trackEvent } from "@/lib/tracking";
 import { hasTermsConsentCookie, sanitizeNextPath, TERMS_CONSENT_COOKIE, TERMS_CONSENT_MAX_AGE, TERMS_CONSENT_VALUE } from "@/lib/terms";
 
 const TERMS_KEY = "em_terms_accepted_v1";
@@ -63,6 +64,7 @@ export function TermsConsentModal() {
   }
 
   function acceptTerms() {
+    trackEvent("terms_accepted");
     window.localStorage.setItem(TERMS_KEY, TERMS_CONSENT_VALUE);
     document.cookie = `${TERMS_CONSENT_COOKIE}=${TERMS_CONSENT_VALUE}; path=/; max-age=${TERMS_CONSENT_MAX_AGE}; samesite=lax`;
     setOpen(false);

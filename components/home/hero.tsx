@@ -5,6 +5,7 @@ import { Volume2, VolumeX } from "lucide-react";
 import { ButtonLink } from "@/components/shared/button";
 import { EmLogo } from "@/components/shared/em-logo";
 import type { SiteLanguage } from "@/lib/i18n";
+import { trackEvent } from "@/lib/tracking";
 
 type HeroProps = {
   lang: SiteLanguage;
@@ -22,11 +23,13 @@ export function Hero({ lang }: HeroProps) {
       audio.pause();
       audio.currentTime = 0;
       setAudioEnabled(false);
+      trackEvent("ambient_audio_disabled");
       return;
     }
 
     audio.play().catch(() => null);
     setAudioEnabled(true);
+    trackEvent("ambient_audio_enabled");
   }
 
   return (
@@ -60,11 +63,24 @@ export function Hero({ lang }: HeroProps) {
         </p>
 
         <div className="mt-10 flex flex-wrap items-center gap-3">
-          <ButtonLink href="/artists">{lang === "es" ? "Explorar artistas" : "Explore Artists"}</ButtonLink>
-          <ButtonLink href="/releases" variant="ghost">
+          <ButtonLink
+            href="/artists"
+            onClick={() => trackEvent("hero_cta_click", { cta: "explore_artists" })}
+          >
+            {lang === "es" ? "Explorar artistas" : "Explore Artists"}
+          </ButtonLink>
+          <ButtonLink
+            href="/releases"
+            variant="ghost"
+            onClick={() => trackEvent("hero_cta_click", { cta: "latest_release" })}
+          >
             {lang === "es" ? "Último lanzamiento" : "Latest Release"}
           </ButtonLink>
-          <ButtonLink href="/join" variant="ghost">
+          <ButtonLink
+            href="/join"
+            variant="ghost"
+            onClick={() => trackEvent("hero_cta_click", { cta: "join_movement" })}
+          >
             {lang === "es" ? "Únete al movimiento" : "Join The Movement"}
           </ButtonLink>
 

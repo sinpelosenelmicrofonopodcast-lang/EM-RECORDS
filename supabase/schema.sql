@@ -263,6 +263,18 @@ before update on public.social_links
 for each row
 execute function public.handle_updated_at();
 
+create table if not exists public.site_events (
+  id uuid primary key default gen_random_uuid(),
+  event_name text not null,
+  path text,
+  locale text,
+  referrer text,
+  user_agent text,
+  ip text,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.newsletter_subscribers (
   id uuid primary key default gen_random_uuid(),
   email text not null unique,
@@ -322,6 +334,7 @@ alter table public.next_up_vote_otps enable row level security;
 alter table public.next_up_votes enable row level security;
 alter table public.next_up_settings enable row level security;
 alter table public.social_links enable row level security;
+alter table public.site_events enable row level security;
 alter table public.newsletter_subscribers enable row level security;
 alter table public.sponsor_applications enable row level security;
 alter table public.ticket_orders enable row level security;
@@ -449,6 +462,18 @@ on public.social_links
 for all
 using (public.is_admin())
 with check (public.is_admin());
+
+drop policy if exists "site events public insert" on public.site_events;
+create policy "site events public insert"
+on public.site_events
+for insert
+with check (true);
+
+drop policy if exists "site events admin read" on public.site_events;
+create policy "site events admin read"
+on public.site_events
+for select
+using (public.is_admin());
 
 drop policy if exists "newsletter public insert" on public.newsletter_subscribers;
 create policy "newsletter public insert" on public.newsletter_subscribers for insert with check (true);

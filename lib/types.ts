@@ -157,3 +157,29 @@ export type SocialLink = {
   createdAt?: string;
   updatedAt?: string;
 };
+
+export type SiteAnalyticsEvent = {
+  eventName: string;
+  total: number;
+  lastSeenAt?: string | null;
+};
+
+export type SiteAnalyticsPage = {
+  path: string;
+  total: number;
+};
+
+export type SiteAnalyticsSnapshot = {
+  windowDays: number;
+  totalEvents: number;
+  uniquePages: number;
+  topEvents: SiteAnalyticsEvent[];
+  topPages: SiteAnalyticsPage[];
+  recentEvents: Array<{
+    id: string;
+    eventName: string;
+    path?: string | null;
+    createdAt: string;
+    locale?: string | null;
+  }>;
+};

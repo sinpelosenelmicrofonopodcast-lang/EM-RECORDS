@@ -5,7 +5,8 @@ import { SiteHeader } from "@/components/shared/site-header";
 import { SiteFooter } from "@/components/shared/site-footer";
 import { TermsConsentModal } from "@/components/shared/terms-consent-modal";
 import { getSiteLanguage } from "@/lib/i18n/server";
-import { absoluteUrl } from "@/lib/utils";
+import { getSocialLinks } from "@/lib/queries";
+import { absoluteUrl, toJsonLd } from "@/lib/utils";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
@@ -45,11 +46,29 @@ export default async function RootLayout({
 }: Readonly<{
   children: ReactNode;
 }>) {
-  const lang = await getSiteLanguage();
+  const [lang, socialLinks] = await Promise.all([getSiteLanguage(), getSocialLinks()]);
+  const orgSchema = {
+    "@context": "https://schema.org",
+    "@type": "MusicGroup",
+    name: "EM Records LLC",
+    url: absoluteUrl("/"),
+    slogan: "Don't chase the wave. Create it.",
+    image: absoluteUrl("/images/em-logo-og.svg"),
+    sameAs: socialLinks.map((item) => item.url)
+  };
+  const websiteSchema = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "EM Records LLC",
+    url: absoluteUrl("/"),
+    inLanguage: lang === "es" ? "es-US" : "en-US"
+  };
 
   return (
     <html lang={lang}>
       <body className="font-sans antialiased">
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLd(orgSchema) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLd(websiteSchema) }} />
         <TermsConsentModal />
         <SiteHeader />
         <main>{children}</main>

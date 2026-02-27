@@ -8,13 +8,15 @@ import { subscribeNewsletterAction } from "@/lib/actions/site";
 import { getSiteLanguage } from "@/lib/i18n/server";
 import { getArtists, getCountdownRelease, getFeaturedRelease, getGallery, getNews, getUpcomingEvents } from "@/lib/queries";
 import {
+  absoluteUrl,
   formatDate,
   getAppleMusicEmbedHeight,
   getSpotifyEmbedHeight,
   normalizeAppleMusicEmbedUrl,
   normalizeImageUrl,
   normalizeSpotifyEmbedUrl,
-  normalizeYouTubeEmbedUrl
+  normalizeYouTubeEmbedUrl,
+  toJsonLd
 } from "@/lib/utils";
 
 export default async function Home() {
@@ -35,9 +37,59 @@ export default async function Home() {
   const featuredArtist = featuredRelease?.artistSlug ? artists.find((artist) => artist.slug === featuredRelease.artistSlug) : null;
   const featuredArtistName = featuredArtist?.name ?? featuredRelease?.artistName ?? featuredRelease?.artistSlug ?? null;
   const hasFeaturedMedia = Boolean(featuredSpotifyEmbed || featuredAppleEmbed || featuredYoutubeEmbed);
+  const homeSchema = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebPage",
+        name: "EM Records LLC",
+        url: absoluteUrl("/"),
+        inLanguage: lang === "es" ? "es-US" : "en-US",
+        description:
+          lang === "es"
+            ? "Disquera urbana latina con visión internacional: artistas, lanzamientos, eventos y publishing."
+            : "Latin urban label with global vision: artists, releases, events and publishing."
+      },
+      ...(featuredRelease
+        ? [
+            {
+              "@type": "MusicRecording",
+              name: featuredRelease.title,
+              datePublished: featuredRelease.releaseDate,
+              byArtist: {
+                "@type": "MusicGroup",
+                name: featuredArtistName ?? "EM Records Artist"
+              },
+              inAlbum: {
+                "@type": "MusicAlbum",
+                name: featuredRelease.title
+              }
+            }
+          ]
+        : []),
+      {
+        "@type": "ItemList",
+        name: lang === "es" ? "Próximos eventos" : "Upcoming events",
+        itemListElement: events.slice(0, 6).map((event, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          item: {
+            "@type": "MusicEvent",
+            name: event.title,
+            startDate: event.startsAt,
+            location: {
+              "@type": "Place",
+              name: `${event.venue}, ${event.city}, ${event.country}`
+            }
+          }
+        }))
+      }
+    ]
+  };
 
   return (
     <div>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLd(homeSchema) }} />
       <Hero lang={lang} />
 
       <section id="latest-release" className="mx-auto w-full max-w-7xl px-6 py-24 md:px-10">

@@ -172,3 +172,7 @@ export function normalizeSoundCloudEmbedUrl(url: string): string {
 
   return `https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&visual=true`;
 }
+
+export function toJsonLd(value: unknown): string {
+  return JSON.stringify(value).replace(/</g, "\\u003c");
+}

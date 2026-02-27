@@ -11,6 +11,31 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { sanitizeNextPath, TERMS_CONSENT_COOKIE, TERMS_CONSENT_MAX_AGE, TERMS_CONSENT_VALUE } from "@/lib/terms";
 
+async function logSiteEvent(
+  eventName: string,
+  input?: {
+    path?: string;
+    locale?: string;
+    metadata?: Record<string, unknown>;
+  }
+) {
+  if (!isSupabaseConfigured()) {
+    return;
+  }
+
+  try {
+    const service = createServiceClient();
+    await service.from("site_events").insert({
+      event_name: eventName,
+      path: input?.path ?? null,
+      locale: input?.locale ?? null,
+      metadata: input?.metadata ?? null
+    });
+  } catch {
+    // Tracking should never break product flows.
+  }
+}
+
 export async function subscribeNewsletterAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
 
@@ -36,6 +61,12 @@ export async function subscribeNewsletterAction(formData: FormData) {
     if (error) {
       return;
     }
+
+    const domain = email.split("@")[1] ?? "unknown";
+    await logSiteEvent("newsletter_subscribed", {
+      path: "/",
+      metadata: { source: "homepage", emailDomain: domain }
+    });
 
     revalidatePath("/");
   } catch {
@@ -73,6 +104,11 @@ export async function submitSponsorApplicationAction(formData: FormData) {
     if (error) {
       return;
     }
+
+    await logSiteEvent("sponsor_application_submitted", {
+      path: "/licensing",
+      metadata: { plan }
+    });
   } catch {
     return;
   }
@@ -138,6 +174,11 @@ export async function submitDemoAction(formData: FormData) {
     if (error) {
       return;
     }
+
+    await logSiteEvent("demo_submitted", {
+      path: "/join",
+      metadata: { hasMessage: Boolean(message) }
+    });
 
     revalidatePath("/join");
   } catch {
@@ -224,6 +265,10 @@ export async function acceptTermsAction(formData: FormData) {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     maxAge: TERMS_CONSENT_MAX_AGE
+  });
+
+  await logSiteEvent("terms_accepted", {
+    path: nextPath
   });
 
   redirect(nextPath === "/legal" ? "/" : nextPath);
@@ -409,6 +454,16 @@ export async function submitNextUpDemoAction(formData: FormData) {
       redirectNextUpDemo("error");
     }
 
+    await logSiteEvent("next_up_demo_submitted", {
+      path: NEXT_UP_PAGE,
+      metadata: {
+        city,
+        hasSocialLinks: Boolean(socialLinks),
+        hasArtistBio: Boolean(artistBio),
+        uploadedFile: Boolean(demoFile)
+      }
+    });
+
     await sendTransactionalEmail({
       to: email,
       subject: "EM Records | Demo recibida para KILLEEN NEXT UP",
@@ -553,6 +608,11 @@ export async function castNextUpVoteAction(formData: FormData) {
       }
       redirectNextUpVote("error");
     }
+
+    await logSiteEvent("next_up_vote_cast", {
+      path: NEXT_UP_PAGE,
+      metadata: { competitorId }
+    });
   } catch {
     redirectNextUpVote("error");
   }

@@ -9,6 +9,7 @@ const nav = [
   { href: "/admin/releases", label: "Releases" },
   { href: "/admin/events", label: "Events" },
   { href: "/admin/news", label: "News" },
+  { href: "/admin/analytics", label: "Analytics" },
   { href: "/admin/social-links", label: "Social Links" },
   { href: "/admin/demos", label: "Demos" },
   { href: "/admin/next-up", label: "Killeen Next Up" }

@@ -26,6 +26,7 @@ import type {
   NextUpSettings,
   NextUpSubmission,
   Release,
+  SiteAnalyticsSnapshot,
   SocialLink,
   TicketOrder
 } from "@/lib/types";
@@ -408,18 +409,26 @@ export const getAdminMetrics = cache(async () => {
     const paidRevenueCents = mockTicketOrders.filter((order) => order.status === "paid").reduce((acc, order) => acc + order.amountTotal, 0);
     const newsletterSubscribers = 42;
     const sponsorApplications = 7;
+    const totalDemos = mockDemos.length;
+    const nextUpSubmissions = mockNextUpSubmissions.length;
+    const nextUpVotes = mockNextUpCompetitors.reduce((acc, competitor) => acc + competitor.votesCount, 0);
     const conversionRate = newsletterSubscribers > 0 ? (mockTicketOrders.length / newsletterSubscribers) * 100 : 0;
+    const submitToVoteRate = nextUpSubmissions > 0 ? (nextUpVotes / nextUpSubmissions) * 100 : 0;
 
     return {
       artists: mockArtists.length,
       releases: mockReleases.length,
       events: mockEvents.length,
       pendingDemos: 4,
+      totalDemos,
       ticketOrders: mockTicketOrders.length,
       newsletterSubscribers,
       sponsorApplications,
+      nextUpSubmissions,
+      nextUpVotes,
       paidRevenueCents,
-      conversionRate
+      conversionRate,
+      submitToVoteRate
     };
   }
 
@@ -430,9 +439,12 @@ export const getAdminMetrics = cache(async () => {
       { count: releases },
       { count: events },
       { count: pendingDemos },
+      { count: totalDemos },
       { count: ticketOrders },
       { count: newsletterSubscribers },
       { count: sponsorApplications },
+      { count: nextUpSubmissions },
+      { count: nextUpVotes },
       { data: paidOrdersData }
     ] =
       await Promise.all([
@@ -440,27 +452,37 @@ export const getAdminMetrics = cache(async () => {
         supabase.from("releases").select("id", { count: "exact", head: true }),
         supabase.from("events").select("id", { count: "exact", head: true }),
         supabase.from("demo_submissions").select("id", { count: "exact", head: true }).eq("status", "pending"),
+        supabase.from("demo_submissions").select("id", { count: "exact", head: true }),
         supabase.from("ticket_orders").select("id", { count: "exact", head: true }),
         supabase.from("newsletter_subscribers").select("id", { count: "exact", head: true }),
         supabase.from("sponsor_applications").select("id", { count: "exact", head: true }),
+        supabase.from("next_up_submissions").select("id", { count: "exact", head: true }),
+        supabase.from("next_up_votes").select("id", { count: "exact", head: true }),
         supabase.from("ticket_orders").select("amount_total,status").eq("status", "paid")
       ]);
 
     const paidRevenueCents = (paidOrdersData ?? []).reduce((acc: number, item: any) => acc + Number(item.amount_total ?? 0), 0);
     const safeNewsletter = newsletterSubscribers ?? 0;
     const safeTicketOrders = ticketOrders ?? 0;
+    const safeNextUpSubmissions = nextUpSubmissions ?? 0;
+    const safeNextUpVotes = nextUpVotes ?? 0;
     const conversionRate = safeNewsletter > 0 ? (safeTicketOrders / safeNewsletter) * 100 : 0;
+    const submitToVoteRate = safeNextUpSubmissions > 0 ? (safeNextUpVotes / safeNextUpSubmissions) * 100 : 0;
 
     return {
       artists: artists ?? 0,
       releases: releases ?? 0,
       events: events ?? 0,
       pendingDemos: pendingDemos ?? 0,
+      totalDemos: totalDemos ?? 0,
       ticketOrders: safeTicketOrders,
       newsletterSubscribers: safeNewsletter,
       sponsorApplications: sponsorApplications ?? 0,
+      nextUpSubmissions: safeNextUpSubmissions,
+      nextUpVotes: safeNextUpVotes,
       paidRevenueCents,
-      conversionRate
+      conversionRate,
+      submitToVoteRate
     };
   } catch {
     return {
@@ -468,12 +490,102 @@ export const getAdminMetrics = cache(async () => {
       releases: mockReleases.length,
       events: mockEvents.length,
       pendingDemos: 0,
+      totalDemos: mockDemos.length,
       ticketOrders: mockTicketOrders.length,
       newsletterSubscribers: 0,
       sponsorApplications: 0,
+      nextUpSubmissions: mockNextUpSubmissions.length,
+      nextUpVotes: mockNextUpCompetitors.reduce((acc, competitor) => acc + competitor.votesCount, 0),
       paidRevenueCents: 0,
-      conversionRate: 0
+      conversionRate: 0,
+      submitToVoteRate: 0
     };
+  }
+});
+
+export const getSiteAnalyticsAdmin = cache(async (): Promise<SiteAnalyticsSnapshot> => {
+  const emptySnapshot: SiteAnalyticsSnapshot = {
+    windowDays: 30,
+    totalEvents: 0,
+    uniquePages: 0,
+    topEvents: [],
+    topPages: [],
+    recentEvents: []
+  };
+
+  if (!isSupabaseConfigured()) {
+    return emptySnapshot;
+  }
+
+  try {
+    const service = createServiceClient();
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await service
+      .from("site_events")
+      .select("id,event_name,path,created_at,locale")
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(5000);
+
+    if (error || !data) {
+      return emptySnapshot;
+    }
+
+    const eventMap = new Map<string, { total: number; lastSeenAt: string }>();
+    const pageMap = new Map<string, number>();
+
+    data.forEach((row: any) => {
+      const eventName = String(row.event_name ?? "unknown");
+      const path = String(row.path ?? "");
+      const createdAt = String(row.created_at ?? new Date().toISOString());
+
+      const currentEvent = eventMap.get(eventName);
+      if (!currentEvent) {
+        eventMap.set(eventName, { total: 1, lastSeenAt: createdAt });
+      } else {
+        currentEvent.total += 1;
+        if (createdAt > currentEvent.lastSeenAt) {
+          currentEvent.lastSeenAt = createdAt;
+        }
+      }
+
+      if (path) {
+        pageMap.set(path, (pageMap.get(path) ?? 0) + 1);
+      }
+    });
+
+    const topEvents = Array.from(eventMap.entries())
+      .map(([eventName, value]) => ({
+        eventName,
+        total: value.total,
+        lastSeenAt: value.lastSeenAt
+      }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 12);
+
+    const topPages = Array.from(pageMap.entries())
+      .map(([path, total]) => ({ path, total }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 12);
+
+    const recentEvents = data.slice(0, 20).map((row: any) => ({
+      id: String(row.id),
+      eventName: String(row.event_name ?? "unknown"),
+      path: row.path ? String(row.path) : null,
+      createdAt: String(row.created_at ?? new Date().toISOString()),
+      locale: row.locale ? String(row.locale) : null
+    }));
+
+    return {
+      windowDays: 30,
+      totalEvents: data.length,
+      uniquePages: pageMap.size,
+      topEvents,
+      topPages,
+      recentEvents
+    };
+  } catch {
+    return emptySnapshot;
   }
 });
 

@@ -6,7 +6,7 @@ import { ButtonLink } from "@/components/shared/button";
 import { SectionTitle } from "@/components/shared/section-title";
 import { getSiteLanguage } from "@/lib/i18n/server";
 import { getArtistBySlug, getUpcomingEvents } from "@/lib/queries";
-import { formatDate, getSpotifyEmbedHeight, normalizeImageUrl, normalizeSoundCloudEmbedUrl, normalizeSpotifyEmbedUrl, normalizeYouTubeEmbedUrl } from "@/lib/utils";
+import { absoluteUrl, formatDate, getSpotifyEmbedHeight, normalizeImageUrl, normalizeSoundCloudEmbedUrl, normalizeSpotifyEmbedUrl, normalizeYouTubeEmbedUrl, toJsonLd } from "@/lib/utils";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -51,9 +51,34 @@ export default async function ArtistDetailPage({ params }: Props) {
     { label: "X", href: artist.xUrl },
     { label: "Facebook", href: artist.facebookUrl }
   ].filter((item): item is { label: string; href: string } => Boolean(item.href));
+  const artistSchema = {
+    "@context": "https://schema.org",
+    "@type": "MusicGroup",
+    name: artist.name,
+    url: absoluteUrl(`/artists/${artist.slug}`),
+    description: artist.bio,
+    image: /^https?:\/\//i.test(artist.avatarUrl) ? artist.avatarUrl : absoluteUrl(artist.avatarUrl),
+    sameAs: socialLinks.map((item) => item.href),
+    genre: "Latin Urban"
+  };
+  const epkSignals = [
+    {
+      label: lang === "es" ? "Plataformas activas" : "Active platforms",
+      value: [artist.spotifyUrl, artist.appleMusicUrl, artist.youtubeUrl].filter(Boolean).length
+    },
+    {
+      label: lang === "es" ? "Embeds en vivo" : "Live embeds",
+      value: [spotifyEmbedSrc, soundcloudEmbedSrc, musicVideoSrc].filter(Boolean).length
+    },
+    {
+      label: lang === "es" ? "Assets de prensa" : "Press assets",
+      value: [artist.pressKitUrl, artist.mediaKitUrl].filter(Boolean).length
+    }
+  ];
 
   return (
     <div>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLd(artistSchema) }} />
       <section className="relative border-b border-white/10">
         <div className="absolute inset-0 -z-10 bg-gradient-to-br from-gold/20 via-transparent to-transparent" />
         <div className="mx-auto grid min-h-[65vh] w-full max-w-7xl gap-10 px-6 py-20 md:grid-cols-2 md:items-end md:px-10">
@@ -101,6 +126,17 @@ export default async function ArtistDetailPage({ params }: Props) {
           <div className="order-first relative mx-auto aspect-[4/5] w-full max-w-[440px] overflow-hidden rounded-3xl border border-white/10 md:order-none">
             <Image src={normalizeImageUrl(artist.heroMediaUrl)} alt={artist.name} fill className="object-cover" />
           </div>
+        </div>
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl px-6 pt-10 md:px-10">
+        <div className="grid gap-3 md:grid-cols-3">
+          {epkSignals.map((signal) => (
+            <article key={signal.label} className="premium-card rounded-2xl p-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-white/55">{signal.label}</p>
+              <p className="mt-2 font-display text-3xl text-white">{signal.value}</p>
+            </article>
+          ))}
         </div>
       </section>
 

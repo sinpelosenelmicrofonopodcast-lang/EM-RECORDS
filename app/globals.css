@@ -6,6 +6,14 @@
   color-scheme: dark;
   --font-sans: "Avenir Next", "Helvetica Neue", "Segoe UI", sans-serif;
   --font-display: "Montserrat", "Avenir Next", "Helvetica Neue", sans-serif;
+  --em-bg: #000000;
+  --em-bg-soft: #0b0b0c;
+  --em-panel: #101013;
+  --em-line: rgba(255, 255, 255, 0.12);
+  --em-line-soft: rgba(255, 255, 255, 0.08);
+  --em-text-soft: rgba(255, 255, 255, 0.68);
+  --em-gold: #c6a85b;
+  --em-gold-soft: rgba(198, 168, 91, 0.25);
 }
 
 * {
@@ -21,10 +29,15 @@ body {
 
 body {
   font-feature-settings: "rlig" 1, "calt" 1;
+  font-family: var(--font-sans);
   background-image:
     radial-gradient(circle at 85% -10%, rgba(198, 168, 91, 0.2), transparent 34%),
     radial-gradient(circle at -10% 30%, rgba(198, 168, 91, 0.12), transparent 26%);
   min-height: 100vh;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 a {
@@ -41,6 +54,31 @@ a {
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: linear-gradient(160deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
   backdrop-filter: blur(12px);
+}
+
+.premium-surface {
+  border: 1px solid var(--em-line);
+  background:
+    radial-gradient(circle at 85% 15%, rgba(198, 168, 91, 0.1), transparent 38%),
+    linear-gradient(165deg, rgba(16, 16, 19, 0.98), rgba(11, 11, 13, 0.98));
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+}
+
+.premium-card {
+  border: 1px solid var(--em-line-soft);
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.premium-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--em-gold-soft);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.32);
+}
+
+.focus-gold:focus-visible {
+  outline: 2px solid var(--em-gold);
+  outline-offset: 2px;
 }
 
 @keyframes fadeUp {
