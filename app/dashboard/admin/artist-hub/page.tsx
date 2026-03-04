@@ -7,16 +7,27 @@ import { createServiceClient } from "@/lib/supabase/service";
 
 export const dynamic = "force-dynamic";
 
-export default async function ArtistHubAdminPage() {
+type Props = {
+  searchParams: Promise<{
+    status?: string;
+    message?: string;
+  }>;
+};
+
+export default async function ArtistHubAdminPage({ searchParams }: Props) {
   const ctx = await requireHubPageContext();
   if (!ctx.isAdmin) {
     redirect("/dashboard/artist-hub");
   }
 
+  const params = await searchParams;
+  const flashStatus = params.status === "success" || params.status === "error" ? params.status : null;
+  const flashMessage = typeof params.message === "string" ? params.message : "";
+
   const service = createServiceClient();
   const [artists, profilesRes, membersRes] = await Promise.all([
     listArtistsForContext(ctx),
-    service.from("profiles").select("id,email,full_name,is_admin").order("created_at", { ascending: false }).limit(200),
+    service.from("profiles").select("id,email,full_name").order("created_at", { ascending: false }).limit(200),
     service.from("artist_members").select("artist_id,user_id,role,created_at")
   ]);
 
@@ -29,6 +40,16 @@ export default async function ArtistHubAdminPage() {
         <p className="text-xs uppercase tracking-[0.2em] text-gold">Admin Control</p>
         <h1 className="mt-2 font-display text-4xl text-white">Artist Hub Management</h1>
         <p className="mt-2 text-sm text-white/70">Create artists, assign users, and control role-based access for Artist Hub modules.</p>
+        {flashStatus && flashMessage ? (
+          <div
+            className={[
+              "mt-4 rounded-xl border px-4 py-3 text-sm",
+              flashStatus === "success" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200" : "border-rose-500/40 bg-rose-500/10 text-rose-200"
+            ].join(" ")}
+          >
+            {flashMessage}
+          </div>
+        ) : null}
       </header>
 
       <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">

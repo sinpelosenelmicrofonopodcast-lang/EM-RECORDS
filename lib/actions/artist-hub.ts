@@ -38,6 +38,30 @@ function slugify(input: string): string {
     .slice(0, 72);
 }
 
+const HUB_ASSIGNABLE_ROLES = new Set(["artist", "manager", "booking", "staff", "admin"]);
+
+function redirectAdminHub(status: "success" | "error", message: string): never {
+  redirect(`/dashboard/admin/artist-hub?status=${encodeURIComponent(status)}&message=${encodeURIComponent(message)}`);
+}
+
+async function findAuthUserByEmail(service: ReturnType<typeof createServiceClient>, email: string) {
+  let page = 1;
+  const perPage = 200;
+
+  while (page <= 20) {
+    const { data, error } = await service.auth.admin.listUsers({ page, perPage });
+    if (error) return { user: null, error };
+
+    const found = (data?.users ?? []).find((user) => (user.email ?? "").toLowerCase() === email);
+    if (found) return { user: found, error: null };
+
+    if ((data?.users ?? []).length < perPage) break;
+    page += 1;
+  }
+
+  return { user: null, error: null };
+}
+
 async function requireHubActionContext(artistId?: string) {
   const ctx = await getHubUserContext();
   if (!ctx) {
@@ -109,40 +133,97 @@ export async function createHubArtistAction(formData: FormData) {
 
 export async function assignArtistMemberAction(formData: FormData) {
   const { ctx, service } = await requireHubActionContext();
-  if (!ctx.isAdmin) throw new Error("Only admin can assign memberships.");
+  if (!ctx.isAdmin) {
+    redirectAdminHub("error", "Solo el administrador puede asignar roles.");
+  }
 
   const artistId = String(formData.get("artistId") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const role = String(formData.get("role") ?? "artist").trim();
 
-  if (!artistId || !email) throw new Error("artistId and email are required.");
+  if (!artistId || !email) {
+    redirectAdminHub("error", "Debes seleccionar artista y correo.");
+  }
 
-  const { data: user } = await service.from("profiles").select("id,email").eq("email", email).maybeSingle();
-  if (!user?.id) {
-    throw new Error("User email not found in profiles. Ask user to log in first.");
+  if (!HUB_ASSIGNABLE_ROLES.has(role)) {
+    redirectAdminHub("error", "Rol inválido.");
+  }
+
+  const { data: profileUser, error: profileUserError } = await service
+    .from("profiles")
+    .select("id,email,full_name")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (profileUserError) {
+    redirectAdminHub("error", `No se pudo buscar perfil: ${profileUserError.message}`);
+  }
+
+  let userId = profileUser?.id ?? null;
+
+  if (!userId) {
+    const { user: authUser, error: authLookupError } = await findAuthUserByEmail(service, email);
+    if (authLookupError) {
+      redirectAdminHub("error", `No se pudo validar el usuario en Auth: ${authLookupError.message}`);
+    }
+
+    if (!authUser?.id) {
+      redirectAdminHub("error", "Usuario no encontrado. Debe iniciar sesión al menos una vez.");
+    }
+
+    userId = authUser.id;
+    const { error: profileUpsertError } = await service.from("profiles").upsert(
+      {
+        id: authUser.id,
+        email: authUser.email ?? email,
+        full_name: authUser.user_metadata?.full_name ?? authUser.user_metadata?.name ?? null
+      },
+      { onConflict: "id" }
+    );
+
+    if (profileUpsertError) {
+      redirectAdminHub("error", `No se pudo crear perfil automáticamente: ${profileUpsertError.message}`);
+    }
   }
 
   const { error } = await service.from("artist_members").upsert(
     {
       artist_id: artistId,
-      user_id: user.id,
+      user_id: userId,
       role
     },
     { onConflict: "artist_id,user_id,role" }
   );
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    redirectAdminHub("error", `No se pudo asignar rol: ${error.message}`);
+  }
+
+  if (role === "admin") {
+    const { error: globalRoleError } = await service.from("user_roles").upsert(
+      {
+        user_id: userId,
+        role: "admin"
+      },
+      { onConflict: "user_id,role" }
+    );
+
+    if (globalRoleError) {
+      redirectAdminHub("error", `Se asignó membresía, pero falló rol global admin: ${globalRoleError.message}`);
+    }
+  }
 
   await insertAuditLog({
     actorUserId: ctx.user.id,
     artistId,
     action: "assign_artist_member",
     entityType: "artist_member",
-    details: { userId: user.id, role }
+    details: { userId, role }
   }).catch(() => undefined);
 
   revalidatePath("/dashboard/admin/artist-hub");
   revalidatePath("/dashboard/artist-hub");
+  redirectAdminHub("success", "Rol asignado correctamente.");
 }
 
 export async function upsertSongHubAction(formData: FormData) {
