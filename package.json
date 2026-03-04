@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "next typegen && tsc --noEmit",
-    "admin:seed": "node scripts/seed-admin.mjs"
+    "admin:seed": "node scripts/seed-admin.mjs",
+    "artist-hub:smoke": "node scripts/artist-hub-smoke.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
