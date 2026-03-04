@@ -69,3 +69,94 @@ on conflict (id) do update set
   voting_enabled = excluded.voting_enabled,
   voting_starts_at = excluded.voting_starts_at,
   voting_ends_at = excluded.voting_ends_at;
+
+-- =====================================================
+-- Artist Hub seed (requires 2026-03-04-artist-hub.sql migration)
+-- =====================================================
+
+insert into public.profiles (id, email, full_name, is_admin)
+select id, email, 'EM Admin', true from auth.users where email = 'emrecordsllc@gmail.com'
+on conflict (id) do update set email = excluded.email, full_name = excluded.full_name, is_admin = true;
+
+insert into public.profiles (id, email, full_name, is_admin)
+select id, email, 'EM Artist Demo', false from auth.users where email = 'artist@emrecords.com'
+on conflict (id) do update set email = excluded.email, full_name = excluded.full_name;
+
+insert into public.profiles (id, email, full_name, is_admin)
+select id, email, 'EM Manager Demo', false from auth.users where email = 'manager@emrecords.com'
+on conflict (id) do update set email = excluded.email, full_name = excluded.full_name;
+
+insert into public.profiles (id, email, full_name, is_admin)
+select id, email, 'EM Booking Demo', false from auth.users where email = 'booking@emrecords.com'
+on conflict (id) do update set email = excluded.email, full_name = excluded.full_name;
+
+insert into public.user_roles (user_id, role)
+select id, 'admin'::public.hub_role from auth.users where email = 'emrecordsllc@gmail.com'
+on conflict (user_id, role) do nothing;
+
+insert into public.user_roles (user_id, role)
+select id, 'artist'::public.hub_role from auth.users where email = 'artist@emrecords.com'
+on conflict (user_id, role) do nothing;
+
+insert into public.user_roles (user_id, role)
+select id, 'manager'::public.hub_role from auth.users where email = 'manager@emrecords.com'
+on conflict (user_id, role) do nothing;
+
+insert into public.user_roles (user_id, role)
+select id, 'booking'::public.hub_role from auth.users where email = 'booking@emrecords.com'
+on conflict (user_id, role) do nothing;
+
+with demo_artist as (
+  select id from public.artists where slug = 'nova-k' limit 1
+)
+insert into public.artist_members (artist_id, user_id, role, permissions)
+select da.id, u.id, 'artist'::public.hub_role, '{"can_approve_content": false}'::jsonb
+from demo_artist da
+join auth.users u on u.email = 'artist@emrecords.com'
+on conflict (artist_id, user_id, role) do nothing;
+
+with demo_artist as (
+  select id from public.artists where slug = 'nova-k' limit 1
+)
+insert into public.artist_members (artist_id, user_id, role, permissions)
+select da.id, u.id, 'manager'::public.hub_role, '{"can_approve_content": true}'::jsonb
+from demo_artist da
+join auth.users u on u.email = 'manager@emrecords.com'
+on conflict (artist_id, user_id, role) do nothing;
+
+with demo_artist as (
+  select id from public.artists where slug = 'nova-k' limit 1
+)
+insert into public.artist_members (artist_id, user_id, role, permissions)
+select da.id, u.id, 'booking'::public.hub_role, '{"can_approve_content": true}'::jsonb
+from demo_artist da
+join auth.users u on u.email = 'booking@emrecords.com'
+on conflict (artist_id, user_id, role) do nothing;
+
+with demo_artist as (
+  select id from public.artists where slug = 'nova-k' limit 1
+), demo_release as (
+  select id, artist_id from public.releases where title = 'Create It' limit 1
+)
+insert into public.songs (artist_id, release_id, title, isrc, explicit, language, bpm, key, links)
+select da.id, dr.id, 'Create It', 'QM4TX2699001', false, 'es', 95, 'Gm',
+       '{"spotify":"https://open.spotify.com/track/7ouMYWpwJ422jRcDASZB7P","youtube":"https://youtu.be/ScMzIvxBSi4"}'::jsonb
+from demo_artist da
+left join demo_release dr on dr.artist_id = da.id
+where not exists (
+  select 1 from public.songs s where s.artist_id = da.id and lower(s.title) = lower('Create It')
+);
+
+insert into public.media_kits (artist_id, headline, one_liner, highlights, press_quotes, stats, contacts, featured_tracks)
+select
+  a.id,
+  'EM Records Artist',
+  'Latino urban sound with global projection.',
+  '["Top local performer","Festival-ready show","Strong streaming growth"]'::jsonb,
+  '["\"A new voice with major label discipline.\""]'::jsonb,
+  '{"monthly_listeners":"120k","instagram":"@emrecordsllc"}'::jsonb,
+  '{"manager":"manager@emrecords.com","booking":"booking@emrecords.com"}'::jsonb,
+  '["Create It"]'::jsonb
+from public.artists a
+where a.slug = 'nova-k'
+on conflict (artist_id) do nothing;
