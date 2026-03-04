@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { Hero } from "@/components/home/hero";
 import { ReleaseCountdown } from "@/components/home/release-countdown";
@@ -114,7 +113,12 @@ export default async function Home() {
             <div className="grid gap-4 md:grid-cols-[96px_1fr] md:items-start">
               <div className="mx-auto w-full max-w-[146px] overflow-hidden rounded-xl border border-white/10 bg-black/65 p-2 md:mx-0 md:max-w-none">
                 <div className="relative aspect-square">
-                  <Image src={normalizeImageUrl(featuredRelease.coverUrl)} alt={featuredRelease.title} fill className="object-contain" />
+                  <img
+                    src={normalizeImageUrl(featuredRelease.coverUrl)}
+                    alt={featuredRelease.title}
+                    className="h-full w-full object-contain"
+                    loading="lazy"
+                  />
                 </div>
               </div>
 
@@ -214,12 +218,11 @@ export default async function Home() {
                 className="group overflow-hidden rounded-2xl border border-white/10 bg-black/70 transition duration-500 hover:-translate-y-1 hover:border-gold/40"
               >
                 <div className="relative aspect-[4/5] overflow-hidden">
-                  <Image
+                  <img
                     src={normalizeImageUrl(artist.avatarUrl)}
                     alt={artist.name}
-                    fill
-                    className="object-cover transition duration-700 group-hover:scale-105"
-                    priority={index < 2}
+                    className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                    loading={index < 2 ? "eager" : "lazy"}
                   />
                 </div>
                 <div className="p-5">
@@ -338,7 +341,12 @@ export default async function Home() {
               {item.kind === "video" ? (
                 <video src={normalizeImageUrl(item.mediaUrl)} className="h-full w-full object-cover" autoPlay loop muted playsInline />
               ) : (
-                <Image src={normalizeImageUrl(item.mediaUrl)} alt={item.caption} fill className="object-cover transition duration-700 group-hover:scale-105" />
+                <img
+                  src={normalizeImageUrl(item.mediaUrl)}
+                  alt={item.caption}
+                  className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                  loading="lazy"
+                />
               )}
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black to-transparent p-3 text-xs uppercase tracking-[0.16em] text-white/80">
                 {item.caption}
