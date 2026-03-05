@@ -647,3 +647,29 @@ export async function deleteSocialLinkAction(formData: FormData) {
 
   revalidateSocialLinkPaths();
 }
+
+export async function updateFanWallEntryStatusAction(formData: FormData) {
+  const supabase = await requireAdminClient();
+  const id = String(formData.get("id") ?? "").trim();
+  const status = String(formData.get("status") ?? "").trim();
+
+  if (!id) {
+    throw new Error("Missing fan wall entry id.");
+  }
+
+  if (!["pending", "approved", "rejected"].includes(status)) {
+    throw new Error("Invalid fan wall status.");
+  }
+
+  const { data, error } = await supabase.from("fan_wall_entries").update({ status }).eq("id", id).select("artist_slug").maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const artistSlug = data?.artist_slug ? String(data.artist_slug) : "";
+  if (artistSlug) {
+    revalidatePath(`/artists/${artistSlug}`);
+  }
+  revalidatePath("/admin/fan-wall");
+}

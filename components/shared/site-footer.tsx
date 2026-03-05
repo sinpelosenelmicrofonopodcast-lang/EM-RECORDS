@@ -9,7 +9,7 @@ export async function SiteFooter() {
 
   return (
     <footer className="border-t border-white/10 bg-black">
-      <div className="mx-auto grid w-full max-w-7xl gap-8 px-6 py-14 md:grid-cols-3 md:px-10">
+      <div className="mx-auto grid w-full max-w-7xl gap-8 px-6 py-14 md:grid-cols-4 md:px-10">
         <div>
           <div className="flex w-[220px] items-center justify-center">
             <EmLogo alt="EM Records LLC" />
@@ -19,6 +19,27 @@ export async function SiteFooter() {
               ? "Disquera urbana latina moderna con visión internacional. Impulsada por cultura, disciplina y ejecución."
               : "Dark modern latin urban label with international vision. Powered by culture, discipline and execution."}
           </p>
+        </div>
+
+        <div>
+          <p className="text-xs uppercase tracking-[0.24em] text-white/60">EM</p>
+          <div className="mt-3 flex flex-col gap-2 text-sm text-white/80">
+            <Link href="/artists" className="hover:text-gold">
+              Artists
+            </Link>
+            <Link href="/releases" className="hover:text-gold">
+              Releases
+            </Link>
+            <Link href="/join" className="hover:text-gold">
+              Join EM
+            </Link>
+            <Link href="/events" className="hover:text-gold">
+              Booking
+            </Link>
+            <Link href="/news" className="hover:text-gold">
+              Press
+            </Link>
+          </div>
         </div>
 
         <div>

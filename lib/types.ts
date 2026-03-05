@@ -48,6 +48,15 @@ export type ArtistPublicInsights = {
   };
 };
 
+export type FanWallEntry = {
+  id: string;
+  artistSlug: string;
+  fanName: string;
+  message: string;
+  status: "pending" | "approved" | "rejected";
+  createdAt: string;
+};
+
 export type Release = {
   id: string;
   title: string;

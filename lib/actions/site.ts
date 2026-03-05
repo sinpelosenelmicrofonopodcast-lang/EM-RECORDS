@@ -186,6 +186,46 @@ export async function submitDemoAction(formData: FormData) {
   }
 }
 
+export async function submitFanWallEntryAction(formData: FormData) {
+  const artistSlug = String(formData.get("artistSlug") ?? "")
+    .trim()
+    .toLowerCase();
+  const fanName = String(formData.get("fanName") ?? "").trim();
+  const message = String(formData.get("message") ?? "").trim();
+
+  if (!artistSlug || !fanName || !message) {
+    return;
+  }
+
+  if (!isSupabaseConfigured()) {
+    return;
+  }
+
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.from("fan_wall_entries").insert({
+      artist_slug: artistSlug,
+      fan_name: fanName.slice(0, 80),
+      message: message.slice(0, 400),
+      status: "pending"
+    });
+
+    if (error) {
+      return;
+    }
+
+    await logSiteEvent("fan_wall_submitted", {
+      path: `/artists/${artistSlug}`,
+      metadata: { artistSlug }
+    });
+
+    revalidatePath(`/artists/${artistSlug}`);
+    revalidatePath("/admin/fan-wall");
+  } catch {
+    return;
+  }
+}
+
 export async function unlockEpkAction(formData: FormData) {
   const rawSlug = String(formData.get("slug") ?? "");
   const slug = sanitizeEpkSlug(rawSlug);

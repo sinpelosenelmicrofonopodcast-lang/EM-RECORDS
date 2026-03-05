@@ -11,6 +11,7 @@ const nav = [
   { href: "/admin/news", label: "News" },
   { href: "/admin/analytics", label: "Analytics" },
   { href: "/admin/social-links", label: "Social Links" },
+  { href: "/admin/fan-wall", label: "Fan Wall" },
   { href: "/admin/demos", label: "Demos" },
   { href: "/admin/next-up", label: "Killeen Next Up" },
   { href: "/dashboard/admin/artist-hub", label: "Artist Hub" }

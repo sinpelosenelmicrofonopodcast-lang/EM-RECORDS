@@ -4,10 +4,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArtistPhotoRotator } from "@/components/artists/artist-photo-rotator";
 import { StickyStreamPlayer } from "@/components/artists/sticky-stream-player";
-import { ButtonLink } from "@/components/shared/button";
 import { SectionTitle } from "@/components/shared/section-title";
+import { submitFanWallEntryAction } from "@/lib/actions/site";
 import { getSiteLanguage } from "@/lib/i18n/server";
-import { getArtistBySlug, getArtistPhotos, getArtistPublicInsights, getArtistReleases, getUpcomingEvents } from "@/lib/queries";
+import { getArtistBySlug, getArtistPhotos, getArtistPublicInsights, getArtistReleases, getArtists, getFanWallEntriesByArtistSlug, getUpcomingEvents } from "@/lib/queries";
 import { buildPageMetadata } from "@/lib/seo";
 import { absoluteUrl, formatDate, getSpotifyEmbedHeight, normalizeImageUrl, normalizeSoundCloudEmbedUrl, normalizeSpotifyEmbedUrl, normalizeYouTubeEmbedUrl, toJsonLd } from "@/lib/utils";
 
@@ -62,6 +62,13 @@ function fromYouTubeEmbedToUrl(value: string | null | undefined): string | null 
   }
 }
 
+function inferVideoLabel(title: string): string {
+  const value = title.toLowerCase();
+  if (value.includes("visual")) return "Visualizer";
+  if (value.includes("live")) return "Live Performance";
+  return "Official Video";
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const artist = await getArtistBySlug(slug);
@@ -94,11 +101,13 @@ export default async function ArtistDetailPage({ params }: Props) {
     notFound();
   }
 
-  const [events, artistPhotos, artistReleases, insights] = await Promise.all([
+  const [events, artistPhotos, artistReleases, insights, allArtists, fanWallEntries] = await Promise.all([
     getUpcomingEvents(),
     getArtistPhotos(artist.id),
     getArtistReleases(artist.slug, artist.name),
-    getArtistPublicInsights(artist.id)
+    getArtistPublicInsights(artist.id),
+    getArtists(),
+    getFanWallEntriesByArtistSlug(artist.slug)
   ]);
 
   const latestRelease = artistReleases[0] ?? null;
@@ -106,16 +115,13 @@ export default async function ArtistDetailPage({ params }: Props) {
   const latestAppleUrl = fromAppleEmbedToUrl(latestRelease?.appleEmbed) ?? artist.appleMusicUrl ?? null;
   const latestYouTubeUrl = fromYouTubeEmbedToUrl(latestRelease?.youtubeEmbed) ?? artist.youtubeUrl ?? null;
 
-  const spotifyEmbedSrc = artist.spotifyEmbed ? normalizeSpotifyEmbedUrl(artist.spotifyEmbed) : latestRelease?.spotifyEmbed ? normalizeSpotifyEmbedUrl(latestRelease.spotifyEmbed) : null;
+  const spotifyEmbedSrc = artist.spotifyEmbed
+    ? normalizeSpotifyEmbedUrl(artist.spotifyEmbed)
+    : latestRelease?.spotifyEmbed
+      ? normalizeSpotifyEmbedUrl(latestRelease.spotifyEmbed)
+      : null;
   const spotifyEmbedHeight = spotifyEmbedSrc ? getSpotifyEmbedHeight(spotifyEmbedSrc) : 152;
   const soundcloudEmbedSrc = artist.soundcloudEmbed ? normalizeSoundCloudEmbedUrl(artist.soundcloudEmbed) : null;
-  const musicVideoSrc = latestRelease?.youtubeEmbed
-    ? normalizeYouTubeEmbedUrl(latestRelease.youtubeEmbed)
-    : artist.musicVideoEmbed
-      ? normalizeYouTubeEmbedUrl(artist.musicVideoEmbed)
-      : artist.youtubeUrl
-        ? normalizeYouTubeEmbedUrl(artist.youtubeUrl)
-        : null;
 
   const interviewLinks = [artist.interviewUrl1, artist.interviewUrl2].filter((item): item is string => Boolean(item));
   const socialLinks = [
@@ -140,7 +146,7 @@ export default async function ArtistDetailPage({ params }: Props) {
 
   const aboutText = firstParagraph(artist.bioShort || artist.bioMed || artist.bio);
   const fallbackHighlights =
-    artist.slug === "leoriel"
+    artist.name.toLowerCase().includes("leoriel") || artist.slug.toLowerCase().includes("leoriel")
       ? [
           "Participó en Icon Viral 2019",
           "Corista del artista urbano Eix",
@@ -152,22 +158,51 @@ export default async function ArtistDetailPage({ params }: Props) {
 
   const topTracks = (insights.featuredTracks.length > 0 ? insights.featuredTracks : artistReleases.map((item) => item.title)).slice(0, 3);
   const asSeenWith =
-    artist.slug === "leoriel"
-      ? ["EIX", "ICON VIRAL", "MEDELLÍN SHOW"]
+    artist.name.toLowerCase().includes("leoriel") || artist.slug.toLowerCase().includes("leoriel")
+      ? ["EIX", "ICON VIRAL", "EL CHOLI SE MUDA A MEDELLÍN"]
       : careerHighlights.slice(0, 3).map((item) => item.toUpperCase());
 
-  const followersValue = insights.stats.followers ?? (socialLinks.length > 0 ? `${socialLinks.length} Platforms` : null);
-  const monthlyListenersValue = insights.stats.monthlyListeners ?? "N/A";
-  const streamsValue = insights.stats.streams ?? "N/A";
+  const followersValue = insights.stats.followers ?? `${Math.max(socialLinks.length, 1)} Platforms`;
+  const monthlyListenersValue = insights.stats.monthlyListeners ?? "Coming soon";
+  const streamsValue = insights.stats.streams ?? "Growing";
 
-  const fanWall =
+  const videoEntries = artistReleases
+    .filter((item) => Boolean(item.youtubeEmbed))
+    .map((item) => ({
+      id: item.id,
+      title: item.title,
+      embed: normalizeYouTubeEmbedUrl(item.youtubeEmbed || ""),
+      href: fromYouTubeEmbedToUrl(item.youtubeEmbed),
+      label: inferVideoLabel(item.title)
+    }))
+    .slice(0, 3);
+
+  if (videoEntries.length === 0 && artist.musicVideoEmbed) {
+    videoEntries.push({
+      id: "artist-main-video",
+      title: artist.name,
+      embed: normalizeYouTubeEmbedUrl(artist.musicVideoEmbed),
+      href: fromYouTubeEmbedToUrl(artist.musicVideoEmbed),
+      label: "Official Video"
+    });
+  }
+
+  const discoverArtists = allArtists.filter((item) => item.slug !== artist.slug).slice(0, 3);
+
+  const fanWallFallback =
     lang === "es"
       ? [
-          '"Leoriel está duro."',
-          '"Killeen está contigo."',
-          '"Puerto Rico represent."'
+          { fanName: "Fan 1", message: "Leoriel está duro" },
+          { fanName: "Fan 2", message: "Killeen está contigo" },
+          { fanName: "Fan 3", message: "Puerto Rico represent" }
         ]
-      : ['"Leoriel is next."', '"Killeen stands with you."', '"Puerto Rico represent."'];
+      : [
+          { fanName: "Fan 1", message: "Leoriel is next" },
+          { fanName: "Fan 2", message: "Killeen stands with you" },
+          { fanName: "Fan 3", message: "Puerto Rico represent" }
+        ];
+
+  const fanWall = fanWallEntries.length > 0 ? fanWallEntries.map((item) => ({ fanName: item.fanName, message: item.message })) : fanWallFallback;
 
   return (
     <div>
@@ -186,8 +221,17 @@ export default async function ArtistDetailPage({ params }: Props) {
                 <p className="text-xs uppercase tracking-[0.2em] text-gold">Latest Release</p>
                 <p className="mt-2 text-3xl font-semibold text-white">{latestRelease.title}</p>
                 <p className="mt-1 text-sm text-white/65">{lang === "es" ? "Lanzamiento" : "Release"}: {formatDate(latestRelease.releaseDate)}</p>
+                <div className="mt-5">
+                  <a
+                    href={latestSpotifyUrl ?? "https://open.spotify.com"}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex rounded-full border border-gold bg-gold px-6 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-black"
+                  >
+                    ▶ Listen Now
+                  </a>
+                </div>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <ButtonLink href={latestSpotifyUrl ?? "https://open.spotify.com"}>{lang === "es" ? "▶ Play" : "▶ Play"}</ButtonLink>
                   {latestSpotifyUrl ? (
                     <a href={latestSpotifyUrl} target="_blank" rel="noreferrer" className="rounded-full border border-white/20 px-4 py-2 text-[11px] uppercase tracking-[0.16em] text-white/75 hover:border-gold hover:text-gold">
                       Spotify
@@ -214,9 +258,9 @@ export default async function ArtistDetailPage({ params }: Props) {
             </div>
             <div className="grid grid-cols-3 gap-2">
               {[
-                { label: lang === "es" ? "Monthly listeners" : "Monthly listeners", value: monthlyListenersValue },
-                { label: lang === "es" ? "Followers" : "Followers", value: followersValue ?? "N/A" },
-                { label: lang === "es" ? "Streams" : "Streams", value: streamsValue }
+                { label: "Monthly listeners", value: monthlyListenersValue },
+                { label: "Followers", value: followersValue },
+                { label: "Streams", value: streamsValue }
               ].map((stat) => (
                 <article key={stat.label} className="rounded-xl border border-white/10 bg-black/55 p-3">
                   <p className="text-[10px] uppercase tracking-[0.16em] text-white/55">{stat.label}</p>
@@ -305,6 +349,48 @@ export default async function ArtistDetailPage({ params }: Props) {
         </div>
       </section>
 
+      <section className="mx-auto w-full max-w-7xl px-6 py-14 md:px-10">
+        <SectionTitle
+          eyebrow={lang === "es" ? "Discografía" : "Discography"}
+          title={lang === "es" ? "Catálogo de Lanzamientos" : "Release Catalog"}
+          description={lang === "es" ? "Singles y lanzamientos recientes con arte oficial." : "Singles and latest releases with official artwork."}
+        />
+
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {artistReleases.slice(0, 6).map((release) => (
+            <article key={release.id} className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
+              <div className="relative aspect-square">
+                <Image src={normalizeImageUrl(release.coverUrl)} alt={release.title} fill className="object-cover" />
+              </div>
+              <div className="p-4">
+                <p className="text-xl font-semibold text-white">{release.title}</p>
+                <p className="mt-1 text-sm text-white/60">{new Date(release.releaseDate).getFullYear()}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl px-6 py-14 md:px-10">
+        <SectionTitle eyebrow="Videos" title={lang === "es" ? "Videos Oficiales" : "Official Videos"} description={lang === "es" ? "Visualizer, official video y performances." : "Visualizer, official video and performances."} />
+        <div className="mt-8 grid gap-4 md:grid-cols-3">
+          {videoEntries.map((video) => (
+            <article key={video.id} className="rounded-2xl border border-white/10 bg-white/[0.02] p-3">
+              <iframe
+                src={video.embed}
+                width="100%"
+                height="190"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                className="rounded-xl border border-white/10"
+              />
+              <p className="mt-3 text-xs uppercase tracking-[0.18em] text-gold">{video.label}</p>
+              <p className="mt-1 text-sm text-white/80">{video.title}</p>
+            </article>
+          ))}
+          {videoEntries.length === 0 ? <p className="text-sm text-white/60">{lang === "es" ? "No hay videos publicados aún." : "No videos published yet."}</p> : null}
+        </div>
+      </section>
+
       {artistPhotos.length > 0 ? (
         <section className="pt-8">
           <SectionTitle
@@ -317,11 +403,7 @@ export default async function ArtistDetailPage({ params }: Props) {
       ) : null}
 
       <section className="mx-auto w-full max-w-7xl px-6 py-20 md:px-10">
-        <SectionTitle
-          eyebrow={lang === "es" ? "Discografía" : "Discography"}
-          title={lang === "es" ? "Streaming y Videos Musicales" : "Streaming & Music Videos"}
-          description={lang === "es" ? "Sección editorial de lanzamientos activos." : "Editorial section for active releases."}
-        />
+        <SectionTitle eyebrow="Streaming" title={lang === "es" ? "Streaming Players" : "Streaming Players"} description={lang === "es" ? "Escucha en vivo desde las plataformas principales." : "Listen live from the main platforms."} />
 
         <div className="mt-8 grid gap-4 md:grid-cols-2">
           {spotifyEmbedSrc ? (
@@ -335,15 +417,6 @@ export default async function ArtistDetailPage({ params }: Props) {
           ) : null}
           {soundcloudEmbedSrc ? (
             <iframe src={soundcloudEmbedSrc} width="100%" height="352" allow="autoplay" className="rounded-2xl border border-white/10" />
-          ) : null}
-          {musicVideoSrc ? (
-            <iframe
-              src={musicVideoSrc}
-              width="100%"
-              height="352"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              className="rounded-2xl border border-white/10 md:col-span-2"
-            />
           ) : null}
         </div>
       </section>
@@ -364,12 +437,23 @@ export default async function ArtistDetailPage({ params }: Props) {
       <section className="mx-auto w-full max-w-7xl px-6 py-14 md:px-10">
         <p className="text-xs uppercase tracking-[0.22em] text-gold">Fan Wall</p>
         <div className="mt-4 grid gap-3 md:grid-cols-3">
-          {fanWall.map((quote) => (
-            <article key={quote} className="rounded-2xl border border-white/10 bg-black/40 p-4">
-              <p className="text-sm text-white/80">{quote}</p>
+          {fanWall.map((quote, index) => (
+            <article key={`${quote.fanName}-${index}`} className="rounded-2xl border border-white/10 bg-black/40 p-4">
+              <p className="text-sm text-white/80">“{quote.message}”</p>
+              <p className="mt-2 text-xs uppercase tracking-[0.16em] text-gold">{quote.fanName}</p>
             </article>
           ))}
         </div>
+
+        <form action={submitFanWallEntryAction} className="mt-6 grid gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4 md:grid-cols-3">
+          <input type="hidden" name="artistSlug" value={artist.slug} />
+          <input name="fanName" placeholder={lang === "es" ? "Tu nombre" : "Your name"} className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white" />
+          <input name="message" placeholder={lang === "es" ? "Tu mensaje" : "Your message"} className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white md:col-span-2" />
+          <button type="submit" className="rounded-full border border-gold px-5 py-2 text-xs uppercase tracking-[0.18em] text-gold md:col-span-3 md:justify-self-start">
+            {lang === "es" ? "Enviar al Fan Wall" : "Submit to Fan Wall"}
+          </button>
+          <p className="text-xs text-white/55 md:col-span-3">{lang === "es" ? "Todas las publicaciones pasan por moderación del admin." : "All posts are moderated by admin."}</p>
+        </form>
       </section>
 
       <section className="border-y border-white/10 bg-white/[0.02]">
@@ -380,19 +464,28 @@ export default async function ArtistDetailPage({ params }: Props) {
             description={lang === "es" ? "Booking y routing gestionado desde admin." : "Booking and routing managed from admin."}
           />
 
-          <div className="mt-8 grid gap-3">
-            {events.map((event) => (
-              <div key={event.id} className="rounded-xl border border-white/10 bg-black/70 p-4 md:flex md:items-center md:justify-between">
-                <div>
-                  <p className="text-lg text-white">{event.title}</p>
-                  <p className="text-sm text-white/65">
-                    {event.venue} · {event.city}, {event.country}
-                  </p>
+          {events.length === 0 ? (
+            <div className="mt-8 rounded-2xl border border-white/10 bg-black/40 p-6">
+              <p className="text-sm text-white/70">{lang === "es" ? "No upcoming shows yet." : "No upcoming shows yet."}</p>
+              <a href={`mailto:${artist.bookingEmail}`} className="mt-4 inline-block rounded-full border border-gold px-5 py-2 text-xs uppercase tracking-[0.18em] text-gold">
+                {`BOOK ${artist.name.toUpperCase()}`}
+              </a>
+            </div>
+          ) : (
+            <div className="mt-8 grid gap-3">
+              {events.map((event) => (
+                <div key={event.id} className="rounded-xl border border-white/10 bg-black/70 p-4 md:flex md:items-center md:justify-between">
+                  <div>
+                    <p className="text-lg text-white">{event.title}</p>
+                    <p className="text-sm text-white/65">
+                      {event.venue} · {event.city}, {event.country}
+                    </p>
+                  </div>
+                  <p className="mt-2 text-sm text-white/65 md:mt-0">{formatDate(event.startsAt)}</p>
                 </div>
-                <p className="mt-2 text-sm text-white/65 md:mt-0">{formatDate(event.startsAt)}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -442,6 +535,27 @@ export default async function ArtistDetailPage({ params }: Props) {
               {lang === "es" ? "Ver Prensa" : "View Press"}
             </Link>
           )}
+        </div>
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl px-6 py-14 md:px-10">
+        <SectionTitle
+          eyebrow={lang === "es" ? "Discover More" : "Discover More"}
+          title={lang === "es" ? "Discover More EM Artists" : "Discover More EM Artists"}
+          description={lang === "es" ? "Explora talento del roster EM Records." : "Explore talent from the EM Records roster."}
+        />
+        <div className="mt-8 grid gap-4 md:grid-cols-3">
+          {discoverArtists.map((item) => (
+            <Link key={item.id} href={`/artists/${item.slug}`} className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
+              <div className="relative aspect-[4/5]">
+                <Image src={normalizeImageUrl(item.avatarUrl)} alt={item.name} fill className="object-cover" />
+              </div>
+              <div className="p-4">
+                <p className="text-xl font-semibold text-white">{item.name}</p>
+                <p className="mt-1 text-sm text-white/65">{item.tagline}</p>
+              </div>
+            </Link>
+          ))}
         </div>
       </section>
 

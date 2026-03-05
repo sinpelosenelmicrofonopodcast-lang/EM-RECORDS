@@ -23,6 +23,7 @@ import type {
   EventItem,
   GalleryItem,
   NewsItem,
+  FanWallEntry,
   NextUpCompetitor,
   NextUpLeaderboardEntry,
   NextUpSettings,
@@ -331,6 +332,54 @@ export const getArtistPublicInsights = cache(async (artistId: string): Promise<A
     };
   } catch {
     return empty;
+  }
+});
+
+function mapFanWallEntry(row: any): FanWallEntry {
+  return {
+    id: String(row.id),
+    artistSlug: String(row.artist_slug),
+    fanName: String(row.fan_name),
+    message: String(row.message),
+    status: String(row.status) as FanWallEntry["status"],
+    createdAt: String(row.created_at)
+  };
+}
+
+export const getFanWallEntriesByArtistSlug = cache(async (artistSlug: string): Promise<FanWallEntry[]> => {
+  if (!isSupabaseConfigured()) {
+    return [];
+  }
+
+  try {
+    const supabase = await createServerSupabase();
+    const { data, error } = await supabase
+      .from("fan_wall_entries")
+      .select("*")
+      .eq("artist_slug", artistSlug)
+      .eq("status", "approved")
+      .order("created_at", { ascending: false })
+      .limit(8);
+
+    if (error || !data) return [];
+    return data.map(mapFanWallEntry);
+  } catch {
+    return [];
+  }
+});
+
+export const getFanWallEntriesAdmin = cache(async (): Promise<FanWallEntry[]> => {
+  if (!isSupabaseConfigured()) {
+    return [];
+  }
+
+  try {
+    const service = createServiceClient();
+    const { data, error } = await service.from("fan_wall_entries").select("*").order("created_at", { ascending: false }).limit(300);
+    if (error || !data) return [];
+    return data.map(mapFanWallEntry);
+  } catch {
+    return [];
   }
 });
 
