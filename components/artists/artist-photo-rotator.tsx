@@ -15,18 +15,17 @@ function photoUrl(artistSlug: string, assetId: string): string {
 
 export function ArtistPhotoRotator({ artistSlug, photos }: Props) {
   const safePhotos = useMemo(() => photos.filter((item) => item?.id), [photos]);
-  const [autoRotate, setAutoRotate] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const touchStartX = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!autoRotate || safePhotos.length <= 1) return;
+    if (safePhotos.length <= 1) return;
     const timer = setInterval(() => {
       setActiveIndex((prev) => (prev + 1) % safePhotos.length);
     }, 5000);
     return () => clearInterval(timer);
-  }, [autoRotate, safePhotos.length]);
+  }, [safePhotos.length]);
 
   useEffect(() => {
     if (!lightboxOpen) return;
@@ -59,10 +58,6 @@ export function ArtistPhotoRotator({ artistSlug, photos }: Props) {
     <section className="mx-auto w-full max-w-7xl px-6 py-14 md:px-10">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs uppercase tracking-[0.2em] text-gold">Media Gallery</p>
-        <label className="flex items-center gap-2 text-xs text-white/75">
-          <input type="checkbox" checked={autoRotate} onChange={(event) => setAutoRotate(event.currentTarget.checked)} className="h-4 w-4 rounded border-white/30 bg-black" />
-          Auto gallery motion
-        </label>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
