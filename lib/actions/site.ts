@@ -552,7 +552,7 @@ async function verifyTurnstileToken(token: string | null, ip: string): Promise<b
 
 async function sendTransactionalEmail(args: { to: string; subject: string; html: string }) {
   const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.NEXT_UP_FROM_EMAIL;
+  const from = process.env.BOOKING_FROM_EMAIL || process.env.NEXT_UP_FROM_EMAIL;
 
   if (!apiKey || !from) {
     return;
