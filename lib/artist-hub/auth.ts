@@ -26,19 +26,16 @@ export async function getHubUserContext(): Promise<HubUserContext | null> {
 
   if (!user) return null;
 
-  let isAdmin = user.user_metadata?.role === "admin";
-  if (!isAdmin) {
-    const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle();
-    isAdmin = Boolean(profile?.is_admin);
-  }
-
-  const [{ data: memberships, error: membershipsError }, { data: globalRoles, error: globalRolesError }] = await Promise.all([
-    supabase.from("artist_members").select("id,artist_id,user_id,role,permissions,created_at").eq("user_id", user.id),
-    supabase.from("user_roles").select("role").eq("user_id", user.id)
+  const service = createServiceClient();
+  const [{ data: profile }, { data: memberships, error: membershipsError }, { data: globalRoles, error: globalRolesError }] = await Promise.all([
+    service.from("profiles").select("is_admin").eq("id", user.id).maybeSingle(),
+    service.from("artist_members").select("id,artist_id,user_id,role,permissions,created_at").eq("user_id", user.id),
+    service.from("user_roles").select("role").eq("user_id", user.id)
   ]);
 
   const safeMemberships = membershipsError ? [] : (memberships ?? []).map(mapMembership);
   const safeGlobalRoles = globalRolesError ? [] : (globalRoles ?? []).map((row: any) => String(row.role) as HubRole);
+  const isAdmin = user.user_metadata?.role === "admin" || Boolean(profile?.is_admin) || safeGlobalRoles.includes("admin");
   const isApproved = isAdmin || safeMemberships.length > 0 || safeGlobalRoles.length > 0;
 
   return {
@@ -98,16 +95,13 @@ export async function requireHubAdmin(user?: User) {
     throw new Error("Unauthorized");
   }
 
-  let isAdmin = resolvedUser.user_metadata?.role === "admin";
-  if (!isAdmin) {
-    const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", resolvedUser.id).maybeSingle();
-    isAdmin = Boolean(profile?.is_admin);
-  }
+  const service = createServiceClient();
+  const [{ data: profile }, { data: roleRow }] = await Promise.all([
+    service.from("profiles").select("is_admin").eq("id", resolvedUser.id).maybeSingle(),
+    service.from("user_roles").select("role").eq("user_id", resolvedUser.id).eq("role", "admin").maybeSingle()
+  ]);
 
-  if (!isAdmin) {
-    const { data: roleRow } = await supabase.from("user_roles").select("role").eq("user_id", resolvedUser.id).eq("role", "admin").maybeSingle();
-    isAdmin = Boolean(roleRow?.role);
-  }
+  const isAdmin = resolvedUser.user_metadata?.role === "admin" || Boolean(profile?.is_admin) || Boolean(roleRow?.role);
 
   if (!isAdmin) {
     throw new Error("Forbidden");
@@ -115,7 +109,7 @@ export async function requireHubAdmin(user?: User) {
 
   return {
     user: resolvedUser,
-    service: createServiceClient()
+    service
   };
 }
 
