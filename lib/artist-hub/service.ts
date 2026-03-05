@@ -278,6 +278,39 @@ export function toStorageUrl(bucket: string, path: string): string {
   return `storage://${bucket}/${path}`;
 }
 
+export function normalizeExternalAssetUrl(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  // Keep storage URLs untouched; they are resolved via signed URLs.
+  if (raw.startsWith("storage://")) return raw;
+
+  try {
+    const parsed = new URL(raw);
+    const host = parsed.hostname.toLowerCase();
+
+    if (host === "drive.google.com") {
+      const filePathMatch = parsed.pathname.match(/\/file\/d\/([^/]+)\//i);
+      const queryId = parsed.searchParams.get("id");
+      const fileId = (filePathMatch?.[1] ?? queryId ?? "").trim();
+      if (fileId) {
+        return `https://drive.google.com/uc?export=view&id=${encodeURIComponent(fileId)}`;
+      }
+    }
+
+    if (host.endsWith("dropbox.com")) {
+      parsed.searchParams.delete("dl");
+      parsed.searchParams.set("raw", "1");
+      return parsed.toString();
+    }
+  } catch {
+    // If it is not a valid URL, return as-is to preserve previous behavior.
+  }
+
+  return raw;
+}
+
 export function parseStorageUrl(value: string | null | undefined): { bucket: string; path: string } | null {
   if (!value || !value.startsWith("storage://")) return null;
   const withoutScheme = value.replace("storage://", "");
@@ -290,9 +323,10 @@ export function parseStorageUrl(value: string | null | undefined): { bucket: str
 }
 
 export async function resolveMaybeSignedUrl(value: string | null | undefined, expiresInSeconds = 3600): Promise<string | null> {
-  if (!value) return null;
-  const parsed = parseStorageUrl(value);
-  if (!parsed) return value;
+  const normalized = normalizeExternalAssetUrl(value);
+  if (!normalized) return null;
+  const parsed = parseStorageUrl(normalized);
+  if (!parsed) return normalized;
 
   const service = createServiceClient();
   const { data, error } = await service.storage.from(parsed.bucket).createSignedUrl(parsed.path, expiresInSeconds);

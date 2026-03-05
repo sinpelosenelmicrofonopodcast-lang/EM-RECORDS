@@ -64,11 +64,13 @@ export default async function ArtistHubGalleryPage({ params }: Params) {
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {await Promise.all(
             assets.map(async (asset) => {
-              const url = await resolveMaybeSignedUrl(asset.url, 60 * 60 * 6);
+              const thumbUrl = await resolveMaybeSignedUrl(asset.thumbUrl, 60 * 60 * 6);
+              const fullUrl = await resolveMaybeSignedUrl(asset.url, 60 * 60 * 6);
+              const url = thumbUrl || fullUrl;
               return (
                 <article key={asset.id} className="overflow-hidden rounded-xl border border-white/10 bg-black/40">
                   <div className="aspect-[4/3] bg-black/70">
-                    {url ? <img src={url} alt={String(asset.metadata.label ?? asset.type)} className="h-full w-full object-cover" /> : null}
+                    {url ? <img src={url} alt={String(asset.metadata.label ?? asset.type)} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-xs uppercase tracking-[0.16em] text-white/35">No preview</div>}
                   </div>
                   <div className="p-3">
                     <p className="text-xs uppercase tracking-[0.16em] text-gold">{asset.type}</p>

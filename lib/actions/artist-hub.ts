@@ -13,6 +13,7 @@ import {
   getMediaKitByArtistId,
   hasArtistAccess,
   insertAuditLog,
+  normalizeExternalAssetUrl,
   roleForArtist,
   toStorageUrl,
   resolveMaybeSignedUrl,
@@ -498,7 +499,7 @@ export async function uploadMediaAssetHubAction(formData: FormData) {
   const fallbackUrl = String(formData.get("url") ?? "").trim();
   const type = String(formData.get("type") ?? "photo").trim();
 
-  let storageUrl = fallbackUrl || null;
+  let storageUrl = normalizeExternalAssetUrl(fallbackUrl);
 
   if (file) {
     const fileName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
