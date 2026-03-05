@@ -368,7 +368,7 @@ export default async function ArtistDetailPage({ params }: Props) {
       </section>
 
       <section className="mx-auto w-full max-w-7xl px-6 pb-8 md:px-10">
-        <SectionTitle eyebrow="Streaming" title="Streaming Player" description="Lazy-loaded players for fast performance." />
+        <SectionTitle eyebrow="Streaming" title="Streaming Player" description={lang === "es" ? "Escucha el sonido oficial de EM Records." : "Listen to the official EM Records sound."} />
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           {spotifyEmbedSrc ? <LazyEmbedFrame title="Spotify" src={spotifyEmbedSrc} height={spotifyEmbedHeight} /> : null}
           {soundcloudEmbedSrc ? <LazyEmbedFrame title="SoundCloud" src={soundcloudEmbedSrc} height={220} /> : null}
@@ -380,7 +380,7 @@ export default async function ArtistDetailPage({ params }: Props) {
         <SectionTitle
           eyebrow={lang === "es" ? "Discografía" : "Discography"}
           title={lang === "es" ? "Catálogo de Lanzamientos" : "Release Catalog"}
-          description={lang === "es" ? "Singles y lanzamientos recientes con arte oficial." : "Singles and latest releases with official artwork."}
+          description={lang === "es" ? "Catálogo oficial de música." : "Official music catalog."}
         />
         <DiscographyGrid items={discographyItems} />
       </section>
@@ -420,7 +420,7 @@ export default async function ArtistDetailPage({ params }: Props) {
         <SectionTitle
           eyebrow={lang === "es" ? "Fechas de Tour" : "Tour Dates"}
           title={lang === "es" ? "Próximas Presentaciones" : "Upcoming Performances"}
-          description={lang === "es" ? "Booking y routing gestionado desde admin." : "Booking and routing managed from admin."}
+          description={lang === "es" ? "Próximas fechas y apariciones especiales." : "Upcoming dates and special appearances."}
         />
 
         {events.length === 0 ? (

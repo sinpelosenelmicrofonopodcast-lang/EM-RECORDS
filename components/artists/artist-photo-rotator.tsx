@@ -61,7 +61,7 @@ export function ArtistPhotoRotator({ artistSlug, photos }: Props) {
         <p className="text-xs uppercase tracking-[0.2em] text-gold">Media Gallery</p>
         <label className="flex items-center gap-2 text-xs text-white/75">
           <input type="checkbox" checked={autoRotate} onChange={(event) => setAutoRotate(event.currentTarget.checked)} className="h-4 w-4 rounded border-white/30 bg-black" />
-          Auto rotate every 5s
+          Auto gallery motion
         </label>
       </div>
 

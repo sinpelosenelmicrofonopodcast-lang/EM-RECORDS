@@ -86,7 +86,7 @@ export function FanWallSection({ artistSlug, entries }: Props) {
           className="focus-gold rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white md:col-span-2"
         />
         <SubmitButton />
-        <p className="text-xs text-white/55 md:col-span-3">All posts are moderated by admin.</p>
+        <p className="text-xs text-white/55 md:col-span-3">Leave your message for the movement.</p>
         {state.status === "success" ? <p className="text-xs text-emerald-200 md:col-span-3">{state.message}</p> : null}
         {state.status === "error" ? <p className="text-xs text-rose-200 md:col-span-3">{state.message}</p> : null}
       </form>
