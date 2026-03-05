@@ -132,6 +132,7 @@ export async function upsertArtistAction(formData: FormData) {
   const tiktokUrlInput = String(formData.get("tiktokUrl") ?? "").trim();
   const xUrlInput = String(formData.get("xUrl") ?? "").trim();
   const facebookUrlInput = String(formData.get("facebookUrl") ?? "").trim();
+  const platformPreferenceInput = String(formData.get("platformPreference") ?? "").trim().toLowerCase();
   const spotifyEmbedInput = String(formData.get("spotifyEmbed") ?? "").trim();
   const soundcloudEmbedInput = String(formData.get("soundcloudEmbed") ?? "").trim();
   const musicVideoEmbedInput = String(formData.get("musicVideoEmbed") ?? "").trim();
@@ -164,6 +165,9 @@ export async function upsertArtistAction(formData: FormData) {
     tiktok_url: tiktokUrlInput || null,
     x_url: xUrlInput || null,
     facebook_url: facebookUrlInput || null,
+    platform_preference: ["spotify", "apple", "youtube"].includes(platformPreferenceInput) ? platformPreferenceInput : null,
+    press_kit_updated_at: uploadedPressKitUrl || pressKitUrlInput ? new Date().toISOString() : null,
+    media_kit_updated_at: uploadedMediaKitUrl || mediaKitUrlInput ? new Date().toISOString() : null,
     epk_enabled: epkEnabledInput
   };
 
@@ -206,6 +210,8 @@ export async function upsertReleaseAction(formData: FormData) {
   const youtubeEmbedInput = String(formData.get("youtubeEmbed") ?? "").trim();
   const artistSlugInput = String(formData.get("artistSlug") ?? "").trim();
   const artistNameInput = String(formData.get("artistName") ?? "").trim();
+  const videoTitleInput = String(formData.get("videoTitle") ?? "").trim();
+  const videoThumbnailInput = String(formData.get("videoThumbnailUrl") ?? "").trim();
   const featuringInput = String(formData.get("featuring") ?? "")
     .trim()
     .replace(/^feat\.?\s*/i, "");
@@ -233,6 +239,9 @@ export async function upsertReleaseAction(formData: FormData) {
     spotify_embed: spotifyEmbedInput ? normalizeSpotifyEmbedUrl(spotifyEmbedInput) : null,
     apple_embed: appleEmbedInput ? normalizeAppleMusicEmbedUrl(appleEmbedInput) : null,
     youtube_embed: youtubeEmbedInput ? normalizeYouTubeEmbedUrl(youtubeEmbedInput) : null,
+    video_title: videoTitleInput || null,
+    video_thumbnail_url: videoThumbnailInput || null,
+    video_featured: String(formData.get("videoFeatured") ?? "") === "on",
     content_status: contentStatusInput || "published",
     publish_at: publishAtInput ? new Date(publishAtInput).toISOString() : null,
     featured: String(formData.get("featured") ?? "") === "on"
@@ -240,6 +249,12 @@ export async function upsertReleaseAction(formData: FormData) {
 
   if (payloadForUpsert.featured) {
     await supabase.from("releases").update({ featured: false }).eq("featured", true);
+  }
+  if (payloadForUpsert.video_featured) {
+    const clearVideoFeatured = await supabase.from("releases").update({ video_featured: false }).eq("video_featured", true);
+    if (clearVideoFeatured.error && !String(clearVideoFeatured.error.message || "").includes("video_featured")) {
+      throw new Error(clearVideoFeatured.error.message);
+    }
   }
 
   let error: { message?: string } | null = null;
@@ -652,6 +667,7 @@ export async function updateFanWallEntryStatusAction(formData: FormData) {
   const supabase = await requireAdminClient();
   const id = String(formData.get("id") ?? "").trim();
   const status = String(formData.get("status") ?? "").trim();
+  const isVerified = String(formData.get("isVerified") ?? "") === "on";
 
   if (!id) {
     throw new Error("Missing fan wall entry id.");
@@ -661,7 +677,13 @@ export async function updateFanWallEntryStatusAction(formData: FormData) {
     throw new Error("Invalid fan wall status.");
   }
 
-  const { data, error } = await supabase.from("fan_wall_entries").update({ status }).eq("id", id).select("artist_slug").maybeSingle();
+  let payload: Record<string, unknown> = { status, is_verified: isVerified };
+  let { data, error } = await supabase.from("fan_wall_entries").update(payload).eq("id", id).select("artist_slug").maybeSingle();
+
+  if (error && String(error.message).includes("is_verified")) {
+    payload = { status };
+    ({ data, error } = await supabase.from("fan_wall_entries").update(payload).eq("id", id).select("artist_slug").maybeSingle());
+  }
 
   if (error) {
     throw new Error(error.message);
@@ -672,4 +694,25 @@ export async function updateFanWallEntryStatusAction(formData: FormData) {
     revalidatePath(`/artists/${artistSlug}`);
   }
   revalidatePath("/admin/fan-wall");
+}
+
+export async function updateBookingInquiryStatusAction(formData: FormData) {
+  const supabase = await requireAdminClient();
+  const id = String(formData.get("id") ?? "").trim();
+  const status = String(formData.get("status") ?? "").trim();
+
+  if (!id) {
+    throw new Error("Missing booking inquiry id.");
+  }
+
+  if (!["new", "contacted", "negotiating", "confirmed", "closed"].includes(status)) {
+    throw new Error("Invalid booking inquiry status.");
+  }
+
+  const { error } = await supabase.from("booking_inquiries").update({ status }).eq("id", id);
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/admin/booking-inquiries");
 }

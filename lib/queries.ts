@@ -19,6 +19,7 @@ import type {
   Artist,
   ArtistPhoto,
   ArtistPublicInsights,
+  BookingInquiry,
   DemoSubmission,
   EventItem,
   GalleryItem,
@@ -61,6 +62,9 @@ function mapArtist(row: any): Artist {
     tiktokUrl: row.tiktok_url,
     xUrl: row.x_url,
     facebookUrl: row.facebook_url,
+    platformPreference: row.platform_preference ?? null,
+    pressKitUpdatedAt: row.press_kit_updated_at ?? null,
+    mediaKitUpdatedAt: row.media_kit_updated_at ?? null,
     epkEnabled: row.epk_enabled ?? false,
     createdAt: row.created_at
   };
@@ -80,6 +84,9 @@ function mapRelease(row: any): Release {
     spotifyEmbed: row.spotify_embed,
     appleEmbed: row.apple_embed,
     youtubeEmbed: row.youtube_embed,
+    videoTitle: row.video_title ?? null,
+    videoThumbnailUrl: row.video_thumbnail_url ?? null,
+    videoFeatured: Boolean(row.video_featured ?? false),
     featured: row.featured,
     contentStatus: row.content_status ?? "published",
     publishAt: row.publish_at ?? null
@@ -341,8 +348,28 @@ function mapFanWallEntry(row: any): FanWallEntry {
     artistSlug: String(row.artist_slug),
     fanName: String(row.fan_name),
     message: String(row.message),
+    isVerified: Boolean(row.is_verified ?? false),
     status: String(row.status) as FanWallEntry["status"],
     createdAt: String(row.created_at)
+  };
+}
+
+function mapBookingInquiry(row: any): BookingInquiry {
+  return {
+    id: String(row.id),
+    artistId: row.artist_id ? String(row.artist_id) : null,
+    artistSlug: String(row.artist_slug ?? ""),
+    artistName: String(row.artist_name ?? ""),
+    inquiryType: String(row.inquiry_type ?? "club") as BookingInquiry["inquiryType"],
+    city: String(row.city ?? ""),
+    dateRange: String(row.date_range ?? ""),
+    budgetRange: String(row.budget_range ?? ""),
+    message: row.message ? String(row.message) : null,
+    contactEmail: String(row.contact_email ?? ""),
+    contactPhone: row.contact_phone ? String(row.contact_phone) : null,
+    status: String(row.status ?? "new") as BookingInquiry["status"],
+    createdAt: String(row.created_at),
+    updatedAt: row.updated_at ? String(row.updated_at) : undefined
   };
 }
 
@@ -378,6 +405,21 @@ export const getFanWallEntriesAdmin = cache(async (): Promise<FanWallEntry[]> =>
     const { data, error } = await service.from("fan_wall_entries").select("*").order("created_at", { ascending: false }).limit(300);
     if (error || !data) return [];
     return data.map(mapFanWallEntry);
+  } catch {
+    return [];
+  }
+});
+
+export const getBookingInquiriesAdmin = cache(async (): Promise<BookingInquiry[]> => {
+  if (!isSupabaseConfigured()) {
+    return [];
+  }
+
+  try {
+    const service = createServiceClient();
+    const { data, error } = await service.from("booking_inquiries").select("*").order("created_at", { ascending: false }).limit(400);
+    if (error || !data) return [];
+    return data.map(mapBookingInquiry);
   } catch {
     return [];
   }

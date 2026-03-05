@@ -186,32 +186,97 @@ export async function submitDemoAction(formData: FormData) {
   }
 }
 
-export async function submitFanWallEntryAction(formData: FormData) {
-  const artistSlug = String(formData.get("artistSlug") ?? "")
-    .trim()
-    .toLowerCase();
-  const fanName = String(formData.get("fanName") ?? "").trim();
-  const message = String(formData.get("message") ?? "").trim();
+type FanWallSubmitState = {
+  status: "idle" | "success" | "error";
+  message: string;
+};
+
+type BookingInquirySubmitState = {
+  status: "idle" | "success" | "error";
+  message: string;
+};
+
+function sanitizePlainText(input: string, max = 400): string {
+  return input.replace(/<[^>]*>/g, "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, max);
+}
+
+export async function submitFanWallEntryAction(_: FanWallSubmitState, formData: FormData): Promise<FanWallSubmitState> {
+  const artistSlug = sanitizePlainText(String(formData.get("artistSlug") ?? "").toLowerCase(), 120);
+  const fanName = sanitizePlainText(String(formData.get("fanName") ?? ""), 80);
+  const message = sanitizePlainText(String(formData.get("message") ?? ""), 400);
+  const honeypot = sanitizePlainText(String(formData.get("website") ?? ""), 180);
+
+  if (honeypot) {
+    return {
+      status: "success",
+      message: "Thanks! Your message is under review."
+    };
+  }
 
   if (!artistSlug || !fanName || !message) {
-    return;
+    return {
+      status: "error",
+      message: "Please complete all required fields."
+    };
   }
 
   if (!isSupabaseConfigured()) {
-    return;
+    return {
+      status: "error",
+      message: "Service temporarily unavailable."
+    };
   }
 
   try {
-    const supabase = await createClient();
-    const { error } = await supabase.from("fan_wall_entries").insert({
+    const h = await headers();
+    const ip = getRequestIp(h);
+    const ipSalt = process.env.FAN_WALL_IP_SALT || "em-fanwall-ip-salt-v1";
+    const ipHash = hashValue(`${ipSalt}:${ip}`);
+    const service = createServiceClient();
+
+    try {
+      const windowStart = new Date(Date.now() - 20 * 60 * 1000).toISOString();
+      const { count } = await service
+        .from("fan_wall_entries")
+        .select("id", { count: "exact", head: true })
+        .eq("artist_slug", artistSlug)
+        .eq("ip_hash", ipHash)
+        .gte("created_at", windowStart);
+
+      if ((count ?? 0) >= 2) {
+        return {
+          status: "error",
+          message: "Too many attempts. Please wait a few minutes."
+        };
+      }
+    } catch {
+      // Continue if the ip_hash column is not available yet.
+    }
+
+    const payload: Record<string, unknown> = {
       artist_slug: artistSlug,
-      fan_name: fanName.slice(0, 80),
-      message: message.slice(0, 400),
-      status: "pending"
-    });
+      fan_name: fanName,
+      message,
+      status: "pending",
+      is_verified: false,
+      ip_hash: ipHash
+    };
+
+    let { error } = await service.from("fan_wall_entries").insert(payload);
+    if (error && String(error.message).includes("ip_hash")) {
+      delete payload.ip_hash;
+      ({ error } = await service.from("fan_wall_entries").insert(payload));
+    }
+    if (error && String(error.message).includes("is_verified")) {
+      delete payload.is_verified;
+      ({ error } = await service.from("fan_wall_entries").insert(payload));
+    }
 
     if (error) {
-      return;
+      return {
+        status: "error",
+        message: "Unable to submit right now. Try again."
+      };
     }
 
     await logSiteEvent("fan_wall_submitted", {
@@ -221,8 +286,125 @@ export async function submitFanWallEntryAction(formData: FormData) {
 
     revalidatePath(`/artists/${artistSlug}`);
     revalidatePath("/admin/fan-wall");
+
+    return {
+      status: "success",
+      message: "Submitted. Your message will appear after admin approval."
+    };
   } catch {
-    return;
+    return {
+      status: "error",
+      message: "Unexpected error. Try again."
+    };
+  }
+}
+
+export async function submitBookingInquiryAction(
+  _: BookingInquirySubmitState,
+  formData: FormData
+): Promise<BookingInquirySubmitState> {
+  const artistSlug = sanitizePlainText(String(formData.get("artistSlug") ?? "").toLowerCase(), 120);
+  const artistName = sanitizePlainText(String(formData.get("artistName") ?? ""), 120);
+  const inquiryTypeRaw = sanitizePlainText(String(formData.get("inquiryType") ?? "").toLowerCase(), 40);
+  const city = sanitizePlainText(String(formData.get("city") ?? ""), 120);
+  const dateRange = sanitizePlainText(String(formData.get("dateRange") ?? ""), 120);
+  const budgetRange = sanitizePlainText(String(formData.get("budgetRange") ?? ""), 120);
+  const message = sanitizePlainText(String(formData.get("message") ?? ""), 1400);
+  const contactEmail = sanitizePlainText(String(formData.get("contactEmail") ?? "").toLowerCase(), 160);
+  const contactPhone = sanitizePlainText(String(formData.get("contactPhone") ?? ""), 80);
+  const honeypot = sanitizePlainText(String(formData.get("website") ?? ""), 120);
+
+  if (honeypot) {
+    return {
+      status: "success",
+      message: "Request sent."
+    };
+  }
+
+  const inquiryType = ["festival", "club", "private", "brand"].includes(inquiryTypeRaw) ? inquiryTypeRaw : "club";
+
+  if (!artistSlug || !city || !dateRange || !budgetRange || !contactEmail) {
+    return {
+      status: "error",
+      message: "Please complete all required fields."
+    };
+  }
+
+  if (!isSupabaseConfigured()) {
+    return {
+      status: "error",
+      message: "Booking service is unavailable."
+    };
+  }
+
+  try {
+    const h = await headers();
+    const ip = getRequestIp(h);
+    const userAgent = h.get("user-agent") || null;
+    const service = createServiceClient();
+
+    const { data: artist } = await service.from("artists").select("id,name,slug").eq("slug", artistSlug).maybeSingle();
+    const resolvedArtistName = String(artist?.name ?? artistName ?? "EM Records Artist");
+
+    const { error } = await service.from("booking_inquiries").insert({
+      artist_id: artist?.id ?? null,
+      artist_slug: artistSlug,
+      artist_name: resolvedArtistName,
+      inquiry_type: inquiryType,
+      city,
+      date_range: dateRange,
+      budget_range: budgetRange,
+      message: message || null,
+      contact_email: contactEmail,
+      contact_phone: contactPhone || null,
+      status: "new",
+      ip,
+      user_agent: userAgent
+    });
+
+    if (error) {
+      return {
+        status: "error",
+        message: "Could not submit booking request. Verify SQL migration."
+      };
+    }
+
+    await sendTransactionalEmail({
+      to: process.env.BOOKING_ALERT_EMAIL || "emrecordsllc@gmail.com",
+      subject: `Booking inquiry · ${resolvedArtistName}`,
+      html: `
+        <h2>New booking inquiry</h2>
+        <p><strong>Artist:</strong> ${resolvedArtistName}</p>
+        <p><strong>Type:</strong> ${inquiryType}</p>
+        <p><strong>City:</strong> ${city}</p>
+        <p><strong>Date range:</strong> ${dateRange}</p>
+        <p><strong>Budget:</strong> ${budgetRange}</p>
+        <p><strong>Email:</strong> ${contactEmail}</p>
+        <p><strong>Phone:</strong> ${contactPhone || "N/A"}</p>
+        <p><strong>Message:</strong> ${message || "N/A"}</p>
+      `
+    });
+
+    await logSiteEvent("booking_inquiry_submitted", {
+      path: `/artists/${artistSlug}`,
+      metadata: {
+        artistSlug,
+        inquiryType
+      }
+    });
+
+    revalidatePath(`/artists/${artistSlug}`);
+    revalidatePath("/admin/booking-inquiries");
+
+    return {
+      status: "success",
+      message: "Inquiry submitted. EM Records will contact you shortly."
+    };
+  } catch {
+    return {
+      status: "error",
+      message: "Unexpected error. Please try again."
+    };
   }
 }
 

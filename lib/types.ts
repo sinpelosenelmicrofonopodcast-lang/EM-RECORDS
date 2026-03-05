@@ -24,6 +24,9 @@ export type Artist = {
   tiktokUrl?: string;
   xUrl?: string;
   facebookUrl?: string;
+  platformPreference?: "spotify" | "apple" | "youtube" | null;
+  pressKitUpdatedAt?: string | null;
+  mediaKitUpdatedAt?: string | null;
   epkEnabled?: boolean;
   createdAt?: string;
 };
@@ -53,6 +56,7 @@ export type FanWallEntry = {
   artistSlug: string;
   fanName: string;
   message: string;
+  isVerified?: boolean;
   status: "pending" | "approved" | "rejected";
   createdAt: string;
 };
@@ -70,9 +74,29 @@ export type Release = {
   spotifyEmbed?: string;
   appleEmbed?: string;
   youtubeEmbed?: string;
+  videoTitle?: string | null;
+  videoThumbnailUrl?: string | null;
+  videoFeatured?: boolean;
   featured: boolean;
   contentStatus?: "draft" | "scheduled" | "published";
   publishAt?: string | null;
+};
+
+export type BookingInquiry = {
+  id: string;
+  artistId?: string | null;
+  artistSlug: string;
+  artistName: string;
+  inquiryType: "festival" | "club" | "private" | "brand";
+  city: string;
+  dateRange: string;
+  budgetRange: string;
+  message?: string | null;
+  contactEmail: string;
+  contactPhone?: string | null;
+  status: "new" | "contacted" | "negotiating" | "confirmed" | "closed";
+  createdAt: string;
+  updatedAt?: string;
 };
 
 export type EventItem = {

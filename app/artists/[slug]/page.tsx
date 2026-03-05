@@ -3,9 +3,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArtistPhotoRotator } from "@/components/artists/artist-photo-rotator";
+import { BookingInquiryModal } from "@/components/artists/booking-inquiry-modal";
+import { DiscographyGrid } from "@/components/artists/discography-grid";
+import { FanWallSection } from "@/components/artists/fan-wall-section";
+import { LazyEmbedFrame } from "@/components/artists/lazy-embed-frame";
 import { StickyStreamPlayer } from "@/components/artists/sticky-stream-player";
+import { TopTracksList } from "@/components/artists/top-tracks-list";
+import { VideosShowcase } from "@/components/artists/videos-showcase";
 import { SectionTitle } from "@/components/shared/section-title";
-import { submitFanWallEntryAction } from "@/lib/actions/site";
 import { getSiteLanguage } from "@/lib/i18n/server";
 import { getArtistBySlug, getArtistPhotos, getArtistPublicInsights, getArtistReleases, getArtists, getFanWallEntriesByArtistSlug, getUpcomingEvents } from "@/lib/queries";
 import { buildPageMetadata } from "@/lib/seo";
@@ -59,6 +64,18 @@ function fromYouTubeEmbedToUrl(value: string | null | undefined): string | null 
     return `https://www.youtube.com/watch?v=${id}`;
   } catch {
     return value;
+  }
+}
+
+function youtubeThumbFromEmbed(value: string | null | undefined): string | null {
+  if (!value) return null;
+  try {
+    const embed = normalizeYouTubeEmbedUrl(value);
+    const id = new URL(embed).pathname.match(/^\/embed\/([^/]+)/)?.[1];
+    if (!id) return null;
+    return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+  } catch {
+    return null;
   }
 }
 
@@ -156,7 +173,22 @@ export default async function ArtistDetailPage({ params }: Props) {
       : [lang === "es" ? "Nueva etapa artística en desarrollo" : "New artistic era in development"];
   const careerHighlights = (insights.highlights.length > 0 ? insights.highlights : fallbackHighlights).slice(0, 4);
 
-  const topTracks = (insights.featuredTracks.length > 0 ? insights.featuredTracks : artistReleases.map((item) => item.title)).slice(0, 3);
+  const topTrackTitles = (insights.featuredTracks.length > 0 ? insights.featuredTracks : artistReleases.map((item) => item.title)).slice(0, 3);
+  const topTracks = topTrackTitles.map((title, index) => {
+    const release = artistReleases.find((item) => item.title.toLowerCase() === title.toLowerCase()) ?? artistReleases[index] ?? latestRelease;
+
+    return {
+      id: release?.id ?? `${title}-${index}`,
+      title,
+      artistName: artist.name,
+      links: {
+        spotify: fromSpotifyEmbedToUrl(release?.spotifyEmbed) ?? artist.spotifyUrl ?? null,
+        apple: fromAppleEmbedToUrl(release?.appleEmbed) ?? artist.appleMusicUrl ?? null,
+        youtube: fromYouTubeEmbedToUrl(release?.youtubeEmbed) ?? artist.youtubeUrl ?? null
+      }
+    };
+  });
+
   const asSeenWith =
     artist.name.toLowerCase().includes("leoriel") || artist.slug.toLowerCase().includes("leoriel")
       ? ["EIX", "ICON VIRAL", "EL CHOLI SE MUDA A MEDELLÍN"]
@@ -170,20 +202,23 @@ export default async function ArtistDetailPage({ params }: Props) {
     .filter((item) => Boolean(item.youtubeEmbed))
     .map((item) => ({
       id: item.id,
-      title: item.title,
+      title: item.videoTitle || item.title,
       embed: normalizeYouTubeEmbedUrl(item.youtubeEmbed || ""),
       href: fromYouTubeEmbedToUrl(item.youtubeEmbed),
-      label: inferVideoLabel(item.title)
-    }))
-    .slice(0, 3);
+      label: inferVideoLabel(item.videoTitle || item.title),
+      thumbnail: normalizeImageUrl(item.videoThumbnailUrl || youtubeThumbFromEmbed(item.youtubeEmbed) || item.coverUrl),
+      featured: Boolean(item.videoFeatured)
+    }));
 
   if (videoEntries.length === 0 && artist.musicVideoEmbed) {
     videoEntries.push({
       id: "artist-main-video",
-      title: artist.name,
+      title: `${artist.name} Official Video`,
       embed: normalizeYouTubeEmbedUrl(artist.musicVideoEmbed),
       href: fromYouTubeEmbedToUrl(artist.musicVideoEmbed),
-      label: "Official Video"
+      label: "Official Video",
+      thumbnail: normalizeImageUrl(youtubeThumbFromEmbed(artist.musicVideoEmbed) || artist.avatarUrl),
+      featured: true
     });
   }
 
@@ -192,58 +227,75 @@ export default async function ArtistDetailPage({ params }: Props) {
   const fanWallFallback =
     lang === "es"
       ? [
-          { fanName: "Fan 1", message: "Leoriel está duro" },
-          { fanName: "Fan 2", message: "Killeen está contigo" },
-          { fanName: "Fan 3", message: "Puerto Rico represent" }
+          { id: "f-1", fanName: "Fan 1", message: "Leoriel está duro", createdAt: new Date().toISOString(), status: "approved" as const, artistSlug: artist.slug, isVerified: false },
+          { id: "f-2", fanName: "Fan 2", message: "Killeen está contigo", createdAt: new Date().toISOString(), status: "approved" as const, artistSlug: artist.slug, isVerified: false },
+          { id: "f-3", fanName: "Fan 3", message: "Puerto Rico represent", createdAt: new Date().toISOString(), status: "approved" as const, artistSlug: artist.slug, isVerified: false }
         ]
       : [
-          { fanName: "Fan 1", message: "Leoriel is next" },
-          { fanName: "Fan 2", message: "Killeen stands with you" },
-          { fanName: "Fan 3", message: "Puerto Rico represent" }
+          { id: "f-1", fanName: "Fan 1", message: "Leoriel is next", createdAt: new Date().toISOString(), status: "approved" as const, artistSlug: artist.slug, isVerified: false },
+          { id: "f-2", fanName: "Fan 2", message: "Killeen stands with you", createdAt: new Date().toISOString(), status: "approved" as const, artistSlug: artist.slug, isVerified: false },
+          { id: "f-3", fanName: "Fan 3", message: "Puerto Rico represent", createdAt: new Date().toISOString(), status: "approved" as const, artistSlug: artist.slug, isVerified: false }
         ];
 
-  const fanWall = fanWallEntries.length > 0 ? fanWallEntries.map((item) => ({ fanName: item.fanName, message: item.message })) : fanWallFallback;
+  const fanWall = fanWallEntries.length > 0 ? fanWallEntries : fanWallFallback;
+
+  const discographyItems = artistReleases.slice(0, 12).map((release) => ({
+    id: release.id,
+    title: release.title,
+    year: String(new Date(release.releaseDate).getFullYear()),
+    coverUrl: release.coverUrl,
+    artistSlug: artist.slug,
+    links: {
+      spotify: fromSpotifyEmbedToUrl(release.spotifyEmbed) ?? null,
+      apple: fromAppleEmbedToUrl(release.appleEmbed) ?? null,
+      youtube: fromYouTubeEmbedToUrl(release.youtubeEmbed) ?? null
+    }
+  }));
+
+  const pressKitHref = `/api/artists/${artist.slug}/press-kit?kind=press`;
+  const mediaKitHref = `/api/artists/${artist.slug}/press-kit?kind=media`;
 
   return (
     <div>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLd(artistSchema) }} />
 
-      <section className="relative border-b border-white/10">
+      <section id="artist-hero" className="relative border-b border-white/10">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_18%_18%,rgba(198,168,91,.26),transparent_45%),radial-gradient(circle_at_80%_28%,rgba(255,255,255,.08),transparent_40%)]" />
-        <div className="mx-auto grid min-h-[70vh] w-full max-w-7xl gap-10 px-6 py-16 md:grid-cols-[1.2fr_.8fr] md:items-center md:px-10">
+        <div className="mx-auto grid min-h-[72vh] w-full max-w-7xl gap-10 px-6 py-16 md:grid-cols-[1.2fr_.8fr] md:items-center md:px-10">
           <div>
             <p className="text-xs uppercase tracking-[0.26em] text-gold">Official Artist Page</p>
             <h1 className="mt-4 font-display text-5xl text-white md:text-7xl">{artist.name}</h1>
             <p className="mt-4 text-sm uppercase tracking-[0.18em] text-white/60">{(insights.stats.topMarket || "Puerto Rico") + " • Latin Urban"}</p>
 
             {latestRelease ? (
-              <div className="mt-8 max-w-2xl rounded-2xl border border-white/10 bg-black/50 p-5">
+              <div className="mt-8 max-w-2xl rounded-2xl border border-white/10 bg-black/55 p-6">
                 <p className="text-xs uppercase tracking-[0.2em] text-gold">Latest Release</p>
                 <p className="mt-2 text-3xl font-semibold text-white">{latestRelease.title}</p>
                 <p className="mt-1 text-sm text-white/65">{lang === "es" ? "Lanzamiento" : "Release"}: {formatDate(latestRelease.releaseDate)}</p>
-                <div className="mt-5">
-                  <a
-                    href={latestSpotifyUrl ?? "https://open.spotify.com"}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex rounded-full border border-gold bg-gold px-6 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-black"
-                  >
-                    ▶ Listen Now
-                  </a>
-                </div>
+
+                <a
+                  href={latestSpotifyUrl ?? latestAppleUrl ?? latestYouTubeUrl ?? "https://open.spotify.com"}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="focus-gold mt-5 inline-flex rounded-full border border-gold bg-gold px-8 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-black"
+                >
+                  ▶ Listen Now
+                </a>
+                <p className="mt-3 text-xs text-white/55">Stream the latest release on your favorite platform.</p>
+
                 <div className="mt-4 flex flex-wrap gap-2">
                   {latestSpotifyUrl ? (
-                    <a href={latestSpotifyUrl} target="_blank" rel="noreferrer" className="rounded-full border border-white/20 px-4 py-2 text-[11px] uppercase tracking-[0.16em] text-white/75 hover:border-gold hover:text-gold">
+                    <a href={latestSpotifyUrl} target="_blank" rel="noreferrer" className="focus-gold rounded-full border border-white/20 px-4 py-2 text-[11px] uppercase tracking-[0.16em] text-white/75 hover:border-gold hover:text-gold">
                       Spotify
                     </a>
                   ) : null}
                   {latestAppleUrl ? (
-                    <a href={latestAppleUrl} target="_blank" rel="noreferrer" className="rounded-full border border-white/20 px-4 py-2 text-[11px] uppercase tracking-[0.16em] text-white/75 hover:border-gold hover:text-gold">
+                    <a href={latestAppleUrl} target="_blank" rel="noreferrer" className="focus-gold rounded-full border border-white/20 px-4 py-2 text-[11px] uppercase tracking-[0.16em] text-white/75 hover:border-gold hover:text-gold">
                       Apple
                     </a>
                   ) : null}
                   {latestYouTubeUrl ? (
-                    <a href={latestYouTubeUrl} target="_blank" rel="noreferrer" className="rounded-full border border-white/20 px-4 py-2 text-[11px] uppercase tracking-[0.16em] text-white/75 hover:border-gold hover:text-gold">
+                    <a href={latestYouTubeUrl} target="_blank" rel="noreferrer" className="focus-gold rounded-full border border-white/20 px-4 py-2 text-[11px] uppercase tracking-[0.16em] text-white/75 hover:border-gold hover:text-gold">
                       YouTube
                     </a>
                   ) : null}
@@ -254,7 +306,7 @@ export default async function ArtistDetailPage({ params }: Props) {
 
           <div className="space-y-4">
             <div className="relative mx-auto aspect-[4/5] w-full max-w-[430px] overflow-hidden rounded-3xl border border-white/10">
-              <Image src={normalizeImageUrl(artist.heroMediaUrl)} alt={artist.name} fill className="object-cover" />
+              <Image src={normalizeImageUrl(artist.heroMediaUrl)} alt={artist.name} fill className="object-cover" priority />
             </div>
             <div className="grid grid-cols-3 gap-2">
               {[
@@ -283,213 +335,118 @@ export default async function ArtistDetailPage({ params }: Props) {
         </div>
       </section>
 
-      <section className="mx-auto grid w-full max-w-7xl gap-6 px-6 py-14 md:grid-cols-2 md:px-10">
-        <article className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-          <p className="text-xs uppercase tracking-[0.22em] text-gold">About {artist.name}</p>
-          <p className="mt-4 text-sm leading-relaxed text-white/75">{aboutText || artist.bio}</p>
-        </article>
-        <article className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-          <p className="text-xs uppercase tracking-[0.22em] text-gold">Career Highlights</p>
-          <ul className="mt-4 space-y-2 text-sm text-white/80">
-            {careerHighlights.map((item) => (
-              <li key={item}>• {item}</li>
-            ))}
-          </ul>
-        </article>
-      </section>
-
-      <section className="mx-auto w-full max-w-7xl px-6 py-6 md:px-10">
+      <section className="mx-auto w-full max-w-7xl px-6 py-12 md:px-10">
         <div className="grid gap-6 md:grid-cols-2">
-          <article className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-            <p className="text-xs uppercase tracking-[0.22em] text-gold">Top Tracks</p>
-            {topTracks.length > 0 ? (
-              <ol className="mt-4 space-y-3 text-white">
-                {topTracks.map((track, index) => (
-                  <li key={`${track}-${index}`} className="flex items-center justify-between rounded-xl border border-white/10 bg-black/40 px-4 py-3">
-                    <span className="text-sm">
-                      {index + 1}. {track}
-                    </span>
-                    <span className="text-xs uppercase tracking-[0.16em] text-gold">Track</span>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="mt-3 text-sm text-white/60">{lang === "es" ? "Próximamente." : "Coming soon."}</p>
-            )}
-          </article>
+          <TopTracksList tracks={topTracks} defaultPlatform={artist.platformPreference ?? "spotify"} />
 
           <article id="latest-release" className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
             <p className="text-xs uppercase tracking-[0.22em] text-gold">Latest Release</p>
             {latestRelease ? (
-              <>
-                <h2 className="mt-3 text-3xl font-semibold text-white">{latestRelease.title}</h2>
-                <p className="mt-1 text-sm text-white/65">{latestRelease.description}</p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {latestSpotifyUrl ? (
-                    <a href={latestSpotifyUrl} target="_blank" rel="noreferrer" className="rounded-full border border-white/20 px-4 py-2 text-[11px] uppercase tracking-[0.16em] text-white/75 hover:border-gold hover:text-gold">
-                      Play Spotify
-                    </a>
-                  ) : null}
-                  {latestAppleUrl ? (
-                    <a href={latestAppleUrl} target="_blank" rel="noreferrer" className="rounded-full border border-white/20 px-4 py-2 text-[11px] uppercase tracking-[0.16em] text-white/75 hover:border-gold hover:text-gold">
-                      Play Apple
-                    </a>
-                  ) : null}
-                  {latestYouTubeUrl ? (
-                    <a href={latestYouTubeUrl} target="_blank" rel="noreferrer" className="rounded-full border border-white/20 px-4 py-2 text-[11px] uppercase tracking-[0.16em] text-white/75 hover:border-gold hover:text-gold">
-                      Play YouTube
-                    </a>
-                  ) : null}
+              <div className="mt-4 flex flex-col gap-4 sm:flex-row">
+                <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-xl border border-white/10">
+                  <Image src={normalizeImageUrl(latestRelease.coverUrl)} alt={latestRelease.title} fill className="object-cover" />
                 </div>
-              </>
+                <div>
+                  <h2 className="text-3xl font-semibold text-white">{latestRelease.title}</h2>
+                  <p className="mt-1 text-sm text-white/65">{latestRelease.description}</p>
+                  <p className="mt-2 text-xs uppercase tracking-[0.16em] text-white/45">{formatDate(latestRelease.releaseDate)}</p>
+                  <a
+                    href={latestSpotifyUrl ?? latestAppleUrl ?? latestYouTubeUrl ?? "https://open.spotify.com"}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="focus-gold mt-3 inline-flex rounded-full border border-gold px-5 py-2 text-xs uppercase tracking-[0.16em] text-gold"
+                  >
+                    Play
+                  </a>
+                </div>
+              </div>
             ) : (
-              <p className="mt-3 text-sm text-white/60">{lang === "es" ? "No release disponible todavía." : "No release available yet."}</p>
+              <p className="mt-3 text-sm text-white/60">No release available yet.</p>
             )}
+          </article>
+        </div>
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl px-6 pb-8 md:px-10">
+        <SectionTitle eyebrow="Streaming" title="Streaming Player" description="Lazy-loaded players for fast performance." />
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          {spotifyEmbedSrc ? <LazyEmbedFrame title="Spotify" src={spotifyEmbedSrc} height={spotifyEmbedHeight} /> : null}
+          {soundcloudEmbedSrc ? <LazyEmbedFrame title="SoundCloud" src={soundcloudEmbedSrc} height={220} /> : null}
+          {!spotifyEmbedSrc && !soundcloudEmbedSrc ? <p className="text-sm text-white/60">No player configured yet.</p> : null}
+        </div>
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl px-6 py-12 md:px-10">
+        <SectionTitle
+          eyebrow={lang === "es" ? "Discografía" : "Discography"}
+          title={lang === "es" ? "Catálogo de Lanzamientos" : "Release Catalog"}
+          description={lang === "es" ? "Singles y lanzamientos recientes con arte oficial." : "Singles and latest releases with official artwork."}
+        />
+        <DiscographyGrid items={discographyItems} />
+      </section>
+
+      <section className="mx-auto w-full max-w-7xl px-6 py-12 md:px-10">
+        <SectionTitle eyebrow="Videos" title={lang === "es" ? "Videos Oficiales" : "Official Videos"} description={lang === "es" ? "Featured video y catálogo visual." : "Featured video and visual catalog."} />
+        <VideosShowcase items={videoEntries} />
+      </section>
+
+      {artistPhotos.length > 0 ? <ArtistPhotoRotator artistSlug={artist.slug} photos={artistPhotos} /> : null}
+
+      <section className="border-y border-white/10 bg-white/[0.02]">
+        <div className="mx-auto grid w-full max-w-7xl gap-6 px-6 py-14 md:grid-cols-2 md:px-10">
+          <article className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+            <p className="text-xs uppercase tracking-[0.22em] text-gold">About {artist.name}</p>
+            <p className="mt-4 text-sm leading-relaxed text-white/75">{aboutText || artist.bio}</p>
+          </article>
+          <article className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+            <p className="text-xs uppercase tracking-[0.22em] text-gold">Career Highlights</p>
+            <ul className="mt-4 space-y-2 text-sm text-white/80">
+              {careerHighlights.map((item) => (
+                <li key={item}>• {item}</li>
+              ))}
+            </ul>
+            <div className="mt-5 flex flex-wrap gap-2">
+              {asSeenWith.map((item) => (
+                <span key={item} className="rounded-full border border-white/20 bg-black/40 px-4 py-2 text-[11px] uppercase tracking-[0.16em] text-white/80">
+                  {item}
+                </span>
+              ))}
+            </div>
           </article>
         </div>
       </section>
 
       <section className="mx-auto w-full max-w-7xl px-6 py-14 md:px-10">
         <SectionTitle
-          eyebrow={lang === "es" ? "Discografía" : "Discography"}
-          title={lang === "es" ? "Catálogo de Lanzamientos" : "Release Catalog"}
-          description={lang === "es" ? "Singles y lanzamientos recientes con arte oficial." : "Singles and latest releases with official artwork."}
+          eyebrow={lang === "es" ? "Fechas de Tour" : "Tour Dates"}
+          title={lang === "es" ? "Próximas Presentaciones" : "Upcoming Performances"}
+          description={lang === "es" ? "Booking y routing gestionado desde admin." : "Booking and routing managed from admin."}
         />
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {artistReleases.slice(0, 6).map((release) => (
-            <article key={release.id} className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
-              <div className="relative aspect-square">
-                <Image src={normalizeImageUrl(release.coverUrl)} alt={release.title} fill className="object-cover" />
-              </div>
-              <div className="p-4">
-                <p className="text-xl font-semibold text-white">{release.title}</p>
-                <p className="mt-1 text-sm text-white/60">{new Date(release.releaseDate).getFullYear()}</p>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="mx-auto w-full max-w-7xl px-6 py-14 md:px-10">
-        <SectionTitle eyebrow="Videos" title={lang === "es" ? "Videos Oficiales" : "Official Videos"} description={lang === "es" ? "Visualizer, official video y performances." : "Visualizer, official video and performances."} />
-        <div className="mt-8 grid gap-4 md:grid-cols-3">
-          {videoEntries.map((video) => (
-            <article key={video.id} className="rounded-2xl border border-white/10 bg-white/[0.02] p-3">
-              <iframe
-                src={video.embed}
-                width="100%"
-                height="190"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                className="rounded-xl border border-white/10"
-              />
-              <p className="mt-3 text-xs uppercase tracking-[0.18em] text-gold">{video.label}</p>
-              <p className="mt-1 text-sm text-white/80">{video.title}</p>
-            </article>
-          ))}
-          {videoEntries.length === 0 ? <p className="text-sm text-white/60">{lang === "es" ? "No hay videos publicados aún." : "No videos published yet."}</p> : null}
-        </div>
-      </section>
-
-      {artistPhotos.length > 0 ? (
-        <section className="pt-8">
-          <SectionTitle
-            eyebrow={lang === "es" ? "Media Gallery" : "Media Gallery"}
-            title={lang === "es" ? "Live performances, studio sessions & press photos" : "Live performances, studio sessions & press photos"}
-            description={lang === "es" ? "Galería rotativa automática cada 5 segundos." : "Auto-rotating gallery every 5 seconds."}
-          />
-          <ArtistPhotoRotator artistSlug={artist.slug} photos={artistPhotos} />
-        </section>
-      ) : null}
-
-      <section className="mx-auto w-full max-w-7xl px-6 py-20 md:px-10">
-        <SectionTitle eyebrow="Streaming" title={lang === "es" ? "Streaming Players" : "Streaming Players"} description={lang === "es" ? "Escucha en vivo desde las plataformas principales." : "Listen live from the main platforms."} />
-
-        <div className="mt-8 grid gap-4 md:grid-cols-2">
-          {spotifyEmbedSrc ? (
-            <iframe
-              src={spotifyEmbedSrc}
-              width="100%"
-              height={String(spotifyEmbedHeight)}
-              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-              className="rounded-2xl border border-white/10"
-            />
-          ) : null}
-          {soundcloudEmbedSrc ? (
-            <iframe src={soundcloudEmbedSrc} width="100%" height="352" allow="autoplay" className="rounded-2xl border border-white/10" />
-          ) : null}
-        </div>
-      </section>
-
-      <section className="border-y border-white/10 bg-white/[0.02]">
-        <div className="mx-auto w-full max-w-7xl px-6 py-14 md:px-10">
-          <p className="text-xs uppercase tracking-[0.24em] text-gold">As Seen With</p>
-          <div className="mt-4 flex flex-wrap gap-3">
-            {asSeenWith.map((item) => (
-              <span key={item} className="rounded-full border border-white/20 bg-black/40 px-4 py-2 text-[11px] uppercase tracking-[0.16em] text-white/80">
-                {item}
-              </span>
-            ))}
+        {events.length === 0 ? (
+          <div className="mt-8 rounded-2xl border border-white/10 bg-black/40 p-6">
+            <p className="text-sm text-white/70">No upcoming shows yet.</p>
+            <BookingInquiryModal artistSlug={artist.slug} artistName={artist.name} bookingEmail={artist.bookingEmail} />
           </div>
-        </div>
-      </section>
-
-      <section className="mx-auto w-full max-w-7xl px-6 py-14 md:px-10">
-        <p className="text-xs uppercase tracking-[0.22em] text-gold">Fan Wall</p>
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          {fanWall.map((quote, index) => (
-            <article key={`${quote.fanName}-${index}`} className="rounded-2xl border border-white/10 bg-black/40 p-4">
-              <p className="text-sm text-white/80">“{quote.message}”</p>
-              <p className="mt-2 text-xs uppercase tracking-[0.16em] text-gold">{quote.fanName}</p>
-            </article>
-          ))}
-        </div>
-
-        <form action={submitFanWallEntryAction} className="mt-6 grid gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4 md:grid-cols-3">
-          <input type="hidden" name="artistSlug" value={artist.slug} />
-          <input name="fanName" placeholder={lang === "es" ? "Tu nombre" : "Your name"} className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white" />
-          <input name="message" placeholder={lang === "es" ? "Tu mensaje" : "Your message"} className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white md:col-span-2" />
-          <button type="submit" className="rounded-full border border-gold px-5 py-2 text-xs uppercase tracking-[0.18em] text-gold md:col-span-3 md:justify-self-start">
-            {lang === "es" ? "Enviar al Fan Wall" : "Submit to Fan Wall"}
-          </button>
-          <p className="text-xs text-white/55 md:col-span-3">{lang === "es" ? "Todas las publicaciones pasan por moderación del admin." : "All posts are moderated by admin."}</p>
-        </form>
-      </section>
-
-      <section className="border-y border-white/10 bg-white/[0.02]">
-        <div className="mx-auto w-full max-w-7xl px-6 py-20 md:px-10">
-          <SectionTitle
-            eyebrow={lang === "es" ? "Fechas de Tour" : "Tour Dates"}
-            title={lang === "es" ? "Próximas Presentaciones" : "Upcoming Performances"}
-            description={lang === "es" ? "Booking y routing gestionado desde admin." : "Booking and routing managed from admin."}
-          />
-
-          {events.length === 0 ? (
-            <div className="mt-8 rounded-2xl border border-white/10 bg-black/40 p-6">
-              <p className="text-sm text-white/70">{lang === "es" ? "No upcoming shows yet." : "No upcoming shows yet."}</p>
-              <a href={`mailto:${artist.bookingEmail}`} className="mt-4 inline-block rounded-full border border-gold px-5 py-2 text-xs uppercase tracking-[0.18em] text-gold">
-                {`BOOK ${artist.name.toUpperCase()}`}
-              </a>
-            </div>
-          ) : (
-            <div className="mt-8 grid gap-3">
-              {events.map((event) => (
-                <div key={event.id} className="rounded-xl border border-white/10 bg-black/70 p-4 md:flex md:items-center md:justify-between">
-                  <div>
-                    <p className="text-lg text-white">{event.title}</p>
-                    <p className="text-sm text-white/65">
-                      {event.venue} · {event.city}, {event.country}
-                    </p>
-                  </div>
-                  <p className="mt-2 text-sm text-white/65 md:mt-0">{formatDate(event.startsAt)}</p>
+        ) : (
+          <div className="mt-8 grid gap-3">
+            {events.map((event) => (
+              <div key={event.id} className="rounded-xl border border-white/10 bg-black/70 p-4 md:flex md:items-center md:justify-between">
+                <div>
+                  <p className="text-lg text-white">{event.title}</p>
+                  <p className="text-sm text-white/65">
+                    {event.venue} · {event.city}, {event.country}
+                  </p>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+                <p className="mt-2 text-sm text-white/65 md:mt-0">{formatDate(event.startsAt)}</p>
+              </div>
+            ))}
+            <BookingInquiryModal artistSlug={artist.slug} artistName={artist.name} bookingEmail={artist.bookingEmail} />
+          </div>
+        )}
       </section>
 
-      <section className="mx-auto grid w-full max-w-7xl gap-6 px-6 py-20 md:grid-cols-3 md:px-10">
+      <section className="mx-auto grid w-full max-w-7xl gap-6 px-6 py-14 md:grid-cols-3 md:px-10">
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
           <p className="text-xs uppercase tracking-[0.22em] text-gold">Press Kit</p>
           <div className="mt-4 space-y-1 text-sm text-white/70">
@@ -501,10 +458,11 @@ export default async function ArtistDetailPage({ params }: Props) {
             <p>✔ Press release</p>
           </div>
           {artist.pressKitUrl ? (
-            <a href={artist.pressKitUrl} className="mt-5 inline-block text-sm text-gold underline underline-offset-4" target="_blank" rel="noreferrer">
-              {lang === "es" ? "Descargar Press Kit" : "Download Press Kit"}
+            <a href={pressKitHref} className="focus-gold mt-5 inline-block text-sm text-gold underline underline-offset-4" target="_blank" rel="noreferrer">
+              Download Press Kit
             </a>
           ) : null}
+          {artist.pressKitUpdatedAt ? <p className="mt-2 text-xs text-white/45">Last updated {formatDate(artist.pressKitUpdatedAt)}</p> : null}
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
@@ -516,27 +474,28 @@ export default async function ArtistDetailPage({ params }: Props) {
             <p>Brand partnerships</p>
           </div>
           <p className="mt-5 text-xs uppercase tracking-[0.16em] text-white/50">EM Records</p>
-          <a href={`mailto:${artist.bookingEmail}`} className="mt-2 inline-block text-sm text-gold underline underline-offset-4">
+          <a href={`mailto:${artist.bookingEmail}`} className="focus-gold mt-2 inline-block text-sm text-gold underline underline-offset-4">
             {artist.bookingEmail}
           </a>
         </div>
 
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
           <p className="text-xs uppercase tracking-[0.22em] text-gold">Media Kit</p>
-          <p className="mt-3 text-sm text-white/70">
-            {lang === "es" ? "Logos, selección de fotos y usos de marca aprobados." : "Logos, photo selections and approved brand usage."}
-          </p>
+          <p className="mt-3 text-sm text-white/70">Logos, photo selections and approved brand usage.</p>
           {artist.mediaKitUrl ? (
-            <a href={artist.mediaKitUrl} target="_blank" rel="noreferrer" className="mt-5 inline-block text-sm text-gold underline underline-offset-4">
-              {lang === "es" ? "Descargar Media Kit" : "Download Media Kit"}
+            <a href={mediaKitHref} target="_blank" rel="noreferrer" className="focus-gold mt-5 inline-block text-sm text-gold underline underline-offset-4">
+              Download Media Kit
             </a>
           ) : (
-            <Link href="/news" className="mt-5 inline-block text-sm text-gold underline underline-offset-4">
-              {lang === "es" ? "Ver Prensa" : "View Press"}
+            <Link href="/news" className="focus-gold mt-5 inline-block text-sm text-gold underline underline-offset-4">
+              View Press
             </Link>
           )}
+          {artist.mediaKitUpdatedAt ? <p className="mt-2 text-xs text-white/45">Last updated {formatDate(artist.mediaKitUpdatedAt)}</p> : null}
         </div>
       </section>
+
+      <FanWallSection artistSlug={artist.slug} entries={fanWall} />
 
       <section className="mx-auto w-full max-w-7xl px-6 py-14 md:px-10">
         <SectionTitle
@@ -546,16 +505,18 @@ export default async function ArtistDetailPage({ params }: Props) {
         />
         <div className="mt-8 grid gap-4 md:grid-cols-3">
           {discoverArtists.map((item) => (
-            <Link key={item.id} href={`/artists/${item.slug}`} className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
+            <Link key={item.id} href={`/artists/${item.slug}`} className="group overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] transition hover:border-gold/40">
               <div className="relative aspect-[4/5]">
-                <Image src={normalizeImageUrl(item.avatarUrl)} alt={item.name} fill className="object-cover" />
+                <Image src={normalizeImageUrl(item.avatarUrl)} alt={item.name} fill className="object-cover transition duration-200 ease-in-out group-hover:scale-[1.02]" />
               </div>
               <div className="p-4">
                 <p className="text-xl font-semibold text-white">{item.name}</p>
                 <p className="mt-1 text-sm text-white/65">{item.tagline}</p>
+                <p className="mt-3 text-[11px] uppercase tracking-[0.16em] text-gold">View Artist</p>
               </div>
             </Link>
           ))}
+          {discoverArtists.length === 0 ? <p className="text-sm text-white/60">More artists coming soon.</p> : null}
         </div>
       </section>
 
@@ -565,7 +526,7 @@ export default async function ArtistDetailPage({ params }: Props) {
           <h2 className="mt-3 font-display text-4xl text-white">Follow {artist.name}</h2>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             {socialLinks.map((social) => (
-              <a key={social.label} href={social.href} target="_blank" rel="noreferrer" className="rounded-full border border-white/20 px-4 py-2 text-[11px] uppercase tracking-[0.18em] text-white/80 hover:border-gold hover:text-gold">
+              <a key={social.label} href={social.href} target="_blank" rel="noreferrer" className="focus-gold rounded-full border border-white/20 px-4 py-2 text-[11px] uppercase tracking-[0.18em] text-white/80 hover:border-gold hover:text-gold">
                 {social.label}
               </a>
             ))}
@@ -573,7 +534,16 @@ export default async function ArtistDetailPage({ params }: Props) {
         </div>
       </section>
 
-      {spotifyEmbedSrc ? <StickyStreamPlayer spotifyEmbedSrc={spotifyEmbedSrc} title={`${artist.name} - Spotify`} /> : null}
+      <StickyStreamPlayer
+        artistName={artist.name}
+        trackName={latestRelease?.title ?? "Latest Release"}
+        links={{
+          spotify: latestSpotifyUrl,
+          apple: latestAppleUrl,
+          youtube: latestYouTubeUrl
+        }}
+        defaultPlatform={artist.platformPreference ?? "spotify"}
+      />
     </div>
   );
 }

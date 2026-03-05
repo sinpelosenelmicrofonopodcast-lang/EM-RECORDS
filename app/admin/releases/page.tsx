@@ -48,6 +48,8 @@ export default async function AdminReleasesPage() {
           <input name="spotifyEmbed" placeholder="Spotify embed URL" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
           <input name="appleEmbed" placeholder="Apple embed URL" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
           <input name="youtubeEmbed" placeholder="YouTube embed URL" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold md:col-span-2" />
+          <input name="videoTitle" placeholder="Video title (optional)" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
+          <input name="videoThumbnailUrl" placeholder="Video thumbnail URL (optional)" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
           <select name="contentStatus" defaultValue="published" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold">
             <option value="published">published</option>
             <option value="scheduled">scheduled</option>
@@ -58,6 +60,10 @@ export default async function AdminReleasesPage() {
           <label className="md:col-span-2 flex items-center gap-2 text-sm text-white/75">
             <input type="checkbox" name="featured" className="h-4 w-4 rounded border-white/30 bg-black" />
             Set as featured release on homepage
+          </label>
+          <label className="md:col-span-2 flex items-center gap-2 text-sm text-white/75">
+            <input type="checkbox" name="videoFeatured" className="h-4 w-4 rounded border-white/30 bg-black" />
+            Set as featured video on artist pages
           </label>
 
           <button type="submit" className="rounded-full border border-gold bg-gold px-6 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-black md:col-span-2 md:justify-self-start">
@@ -156,6 +162,18 @@ export default async function AdminReleasesPage() {
                 placeholder="YouTube embed URL"
                 className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold md:col-span-2"
               />
+              <input
+                name="videoTitle"
+                defaultValue={release.videoTitle ?? ""}
+                placeholder="Video title (optional)"
+                className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold"
+              />
+              <input
+                name="videoThumbnailUrl"
+                defaultValue={release.videoThumbnailUrl ?? ""}
+                placeholder="Video thumbnail URL (optional)"
+                className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold"
+              />
               <select
                 name="contentStatus"
                 defaultValue={release.contentStatus ?? "published"}
@@ -175,6 +193,10 @@ export default async function AdminReleasesPage() {
               <label className="md:col-span-2 flex items-center gap-2 text-sm text-white/75">
                 <input type="checkbox" name="featured" defaultChecked={release.featured} className="h-4 w-4 rounded border-white/30 bg-black" />
                 Set as featured release on homepage
+              </label>
+              <label className="md:col-span-2 flex items-center gap-2 text-sm text-white/75">
+                <input type="checkbox" name="videoFeatured" defaultChecked={Boolean(release.videoFeatured)} className="h-4 w-4 rounded border-white/30 bg-black" />
+                Set as featured video on artist pages
               </label>
 
               <button type="submit" className="rounded-full border border-gold px-6 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-gold md:col-span-2 md:justify-self-start">
