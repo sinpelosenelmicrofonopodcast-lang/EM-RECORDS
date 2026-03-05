@@ -32,6 +32,7 @@ export type HubArtist = {
 export type HubUserContext = {
   user: User;
   isAdmin: boolean;
+  isApproved: boolean;
   globalRoles: HubRole[];
   memberships: HubMembership[];
 };

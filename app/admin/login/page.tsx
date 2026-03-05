@@ -45,6 +45,9 @@ export default async function AdminLoginPage({ searchParams }: Props) {
         <Link href="/" className="mt-6 inline-block text-xs uppercase tracking-[0.16em] text-white/45 hover:text-gold">
           Back to Website
         </Link>
+        <Link href="/artist/login" className="ml-4 mt-6 inline-block text-xs uppercase tracking-[0.16em] text-white/45 hover:text-gold">
+          Artist Login
+        </Link>
       </div>
     </div>
   );

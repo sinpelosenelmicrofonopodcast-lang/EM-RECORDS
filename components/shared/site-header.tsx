@@ -45,6 +45,14 @@ export async function SiteHeader() {
         <div className="flex items-center gap-3">
           <LanguageToggle lang={lang} />
           <TrackedLink
+            href="/artist/login"
+            eventName="nav_click"
+            metadata={{ target: "/artist/login" }}
+            className="rounded-full border border-white/20 px-4 py-2 text-[11px] uppercase tracking-[0.2em] text-white/70 hover:border-white/40 hover:text-white"
+          >
+            {lang === "es" ? "Artistas" : "Artists"}
+          </TrackedLink>
+          <TrackedLink
             href="/admin"
             eventName="nav_click"
             metadata={{ target: "/admin" }}

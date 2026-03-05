@@ -961,8 +961,8 @@ using (
     public.is_admin()
     or (
       array_length(storage.foldername(name), 1) >= 1
-      and storage.foldername(name)[1] ~* '^[0-9a-f-]{36}$'
-      and public.has_artist_membership(storage.foldername(name)[1]::uuid)
+      and (storage.foldername(name))[1] ~* '^[0-9a-f-]{36}$'
+      and public.has_artist_membership((storage.foldername(name))[1]::uuid)
     )
   )
 );
@@ -977,8 +977,8 @@ using (
     public.is_admin()
     or (
       array_length(storage.foldername(name), 1) >= 1
-      and storage.foldername(name)[1] ~* '^[0-9a-f-]{36}$'
-      and public.has_artist_membership(storage.foldername(name)[1]::uuid)
+      and (storage.foldername(name))[1] ~* '^[0-9a-f-]{36}$'
+      and public.has_artist_membership((storage.foldername(name))[1]::uuid)
     )
   )
 )
@@ -988,8 +988,8 @@ with check (
     public.is_admin()
     or (
       array_length(storage.foldername(name), 1) >= 1
-      and storage.foldername(name)[1] ~* '^[0-9a-f-]{36}$'
-      and public.has_artist_membership(storage.foldername(name)[1]::uuid)
+      and (storage.foldername(name))[1] ~* '^[0-9a-f-]{36}$'
+      and public.has_artist_membership((storage.foldername(name))[1]::uuid)
     )
   )
 );

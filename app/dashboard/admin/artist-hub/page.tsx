@@ -25,14 +25,22 @@ export default async function ArtistHubAdminPage({ searchParams }: Props) {
   const flashMessage = typeof params.message === "string" ? params.message : "";
 
   const service = createServiceClient();
-  const [artists, profilesRes, membersRes] = await Promise.all([
+  const [artists, profilesRes, membersRes, userRolesRes] = await Promise.all([
     listArtistsForContext(ctx),
     service.from("profiles").select("id,email,full_name").order("created_at", { ascending: false }).limit(200),
-    service.from("artist_members").select("artist_id,user_id,role,created_at")
+    service.from("artist_members").select("artist_id,user_id,role,created_at"),
+    service.from("user_roles").select("user_id,role")
   ]);
 
   const profiles = profilesRes.data ?? [];
   const members = membersRes.data ?? [];
+  const userRoles = userRolesRes.data ?? [];
+  const userIdsWithArtistMembership = new Set(members.map((member: any) => String(member.user_id)));
+  const userIdsWithGlobalRole = new Set(userRoles.map((row: any) => String(row.user_id)));
+  const pendingProfiles = profiles.filter((profile: any) => {
+    const userId = String(profile.id);
+    return !userIdsWithArtistMembership.has(userId) && !userIdsWithGlobalRole.has(userId);
+  });
 
   return (
     <HubShell>
@@ -101,6 +109,34 @@ export default async function ArtistHubAdminPage({ searchParams }: Props) {
             Assign role
           </button>
         </form>
+      </section>
+
+      <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+        <p className="text-xs uppercase tracking-[0.16em] text-white/55">Pending artist accounts</p>
+        {pendingProfiles.length === 0 ? (
+          <p className="mt-4 rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white/65">No hay cuentas pendientes de aprobación.</p>
+        ) : (
+          <div className="mt-4 overflow-x-auto">
+            <table className="min-w-full text-left text-sm text-white/80">
+              <thead>
+                <tr className="border-b border-white/10 text-xs uppercase tracking-[0.14em] text-white/55">
+                  <th className="px-3 py-2">Email</th>
+                  <th className="px-3 py-2">Nombre</th>
+                  <th className="px-3 py-2">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingProfiles.map((profile: any) => (
+                  <tr key={profile.id} className="border-b border-white/5">
+                    <td className="px-3 py-2">{profile.email || profile.id}</td>
+                    <td className="px-3 py-2">{profile.full_name || "—"}</td>
+                    <td className="px-3 py-2 text-white/60">Usa “Assign user to artist” para aprobar.</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">

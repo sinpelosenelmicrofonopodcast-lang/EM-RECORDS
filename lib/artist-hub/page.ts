@@ -5,7 +5,11 @@ import { getArtistBySlugForContext, listArtistsForContext, roleForArtist } from 
 export async function requireHubPageContext() {
   const ctx = await getHubUserContext();
   if (!ctx) {
-    redirect("/admin/login");
+    redirect("/artist/login");
+  }
+
+  if (!ctx.isApproved && !ctx.isAdmin) {
+    redirect("/dashboard/artist-hub/pending");
   }
 
   return ctx;

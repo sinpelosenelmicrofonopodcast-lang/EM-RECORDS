@@ -37,11 +37,16 @@ export async function getHubUserContext(): Promise<HubUserContext | null> {
     supabase.from("user_roles").select("role").eq("user_id", user.id)
   ]);
 
+  const safeMemberships = membershipsError ? [] : (memberships ?? []).map(mapMembership);
+  const safeGlobalRoles = globalRolesError ? [] : (globalRoles ?? []).map((row: any) => String(row.role) as HubRole);
+  const isApproved = isAdmin || safeMemberships.length > 0 || safeGlobalRoles.length > 0;
+
   return {
     user,
     isAdmin,
-    globalRoles: globalRolesError ? [] : (globalRoles ?? []).map((row: any) => String(row.role) as HubRole),
-    memberships: membershipsError ? [] : (memberships ?? []).map(mapMembership)
+    isApproved,
+    globalRoles: safeGlobalRoles,
+    memberships: safeMemberships
   };
 }
 

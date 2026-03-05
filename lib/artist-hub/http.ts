@@ -12,6 +12,9 @@ export async function requireApiHubContext() {
   if (!ctx) {
     return { error: errorJson("Unauthorized", 401) } as const;
   }
+  if (!ctx.isApproved && !ctx.isAdmin) {
+    return { error: errorJson("Account pending admin approval", 403) } as const;
+  }
 
   const supabase = await createClient();
   return { ctx, supabase, service: createServiceClient() } as const;
