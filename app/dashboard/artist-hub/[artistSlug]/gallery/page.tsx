@@ -64,9 +64,10 @@ export default async function ArtistHubGalleryPage({ params }: Params) {
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {await Promise.all(
             assets.map(async (asset) => {
-              const thumbUrl = await resolveMaybeSignedUrl(asset.thumbUrl, 60 * 60 * 6);
-              const fullUrl = await resolveMaybeSignedUrl(asset.url, 60 * 60 * 6);
-              const url = thumbUrl || fullUrl;
+              const url =
+                asset.source === "lightroom"
+                  ? `/api/artist-hub/lightroom/asset/${asset.id}?artistId=${artist.id}&size=thumb`
+                  : (await resolveMaybeSignedUrl(asset.thumbUrl, 60 * 60 * 6)) || (await resolveMaybeSignedUrl(asset.url, 60 * 60 * 6));
               return (
                 <article key={asset.id} className="overflow-hidden rounded-xl border border-white/10 bg-black/40">
                   <div className="aspect-[4/3] bg-black/70">
