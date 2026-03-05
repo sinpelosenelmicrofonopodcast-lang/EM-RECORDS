@@ -14,6 +14,7 @@ import {
   hasArtistAccess,
   insertAuditLog,
   normalizeExternalAssetUrl,
+  parseStorageUrl,
   roleForArtist,
   toStorageUrl,
   resolveMaybeSignedUrl,
@@ -539,6 +540,57 @@ export async function uploadMediaAssetHubAction(formData: FormData) {
   }).catch(() => undefined);
 
   revalidatePath(`/dashboard/artist-hub`);
+}
+
+export async function deleteMediaAssetHubAction(formData: FormData) {
+  const artistId = String(formData.get("artistId") ?? "").trim();
+  const assetId = String(formData.get("assetId") ?? "").trim();
+  const { ctx, service } = await requireHubActionContext(artistId);
+
+  if (!assetId) {
+    throw new Error("Asset id is required.");
+  }
+
+  const { data: asset, error: assetError } = await service
+    .from("media_assets")
+    .select("id,artist_id,url,thumb_url,type")
+    .eq("id", assetId)
+    .eq("artist_id", artistId)
+    .maybeSingle();
+
+  if (assetError || !asset) {
+    throw new Error(assetError?.message ?? "Asset not found.");
+  }
+
+  const storageCandidates = [asset.url, asset.thumb_url]
+    .map((value) => parseStorageUrl(value))
+    .filter((value): value is { bucket: string; path: string } => Boolean(value));
+
+  for (const candidate of storageCandidates) {
+    await service.storage.from(candidate.bucket).remove([candidate.path]).catch(() => undefined);
+  }
+
+  const { error: deleteError } = await service.from("media_assets").delete().eq("id", assetId).eq("artist_id", artistId);
+  if (deleteError) {
+    throw new Error(deleteError.message);
+  }
+
+  const { data: artist } = await service.from("artists").select("slug").eq("id", artistId).maybeSingle();
+
+  await insertAuditLog({
+    actorUserId: ctx.user.id,
+    artistId,
+    action: "delete_media_asset",
+    entityType: "media_asset",
+    entityId: assetId,
+    details: { type: String(asset.type) }
+  }).catch(() => undefined);
+
+  revalidatePath(`/dashboard/artist-hub`);
+  if (artist?.slug) {
+    revalidatePath(`/dashboard/artist-hub/${String(artist.slug)}/gallery`);
+    revalidatePath(`/artists/${String(artist.slug)}`);
+  }
 }
 
 export async function uploadDocumentHubAction(formData: FormData) {

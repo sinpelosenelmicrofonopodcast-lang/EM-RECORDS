@@ -25,6 +25,14 @@ export type Artist = {
   createdAt?: string;
 };
 
+export type ArtistPhoto = {
+  id: string;
+  artistId: string;
+  label: string;
+  type: "photo" | "cover";
+  createdAt?: string;
+};
+
 export type Release = {
   id: string;
   title: string;

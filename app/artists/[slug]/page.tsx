@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArtistPhotoRotator } from "@/components/artists/artist-photo-rotator";
 import { ButtonLink } from "@/components/shared/button";
 import { SectionTitle } from "@/components/shared/section-title";
 import { getSiteLanguage } from "@/lib/i18n/server";
-import { getArtistBySlug, getUpcomingEvents } from "@/lib/queries";
+import { getArtistBySlug, getArtistPhotos, getUpcomingEvents } from "@/lib/queries";
 import { buildPageMetadata } from "@/lib/seo";
 import { absoluteUrl, formatDate, getSpotifyEmbedHeight, normalizeImageUrl, normalizeSoundCloudEmbedUrl, normalizeSpotifyEmbedUrl, normalizeYouTubeEmbedUrl, toJsonLd } from "@/lib/utils";
 
@@ -45,7 +46,7 @@ export default async function ArtistDetailPage({ params }: Props) {
     notFound();
   }
 
-  const events = await getUpcomingEvents();
+  const [events, artistPhotos] = await Promise.all([getUpcomingEvents(), getArtistPhotos(artist.id)]);
   const spotifyEmbedSrc = artist.spotifyEmbed ? normalizeSpotifyEmbedUrl(artist.spotifyEmbed) : null;
   const spotifyEmbedHeight = spotifyEmbedSrc ? getSpotifyEmbedHeight(spotifyEmbedSrc) : 152;
   const soundcloudEmbedSrc = artist.soundcloudEmbed ? normalizeSoundCloudEmbedUrl(artist.soundcloudEmbed) : null;
@@ -149,6 +150,8 @@ export default async function ArtistDetailPage({ params }: Props) {
           ))}
         </div>
       </section>
+
+      {artistPhotos.length > 0 ? <ArtistPhotoRotator artistSlug={artist.slug} photos={artistPhotos} /> : null}
 
       <section className="mx-auto w-full max-w-7xl px-6 py-20 md:px-10">
         <SectionTitle

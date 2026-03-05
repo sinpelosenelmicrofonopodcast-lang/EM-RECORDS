@@ -1,5 +1,5 @@
 import { ArtistHubModuleHeader } from "@/components/artist-hub/module-header";
-import { syncLightroomHubAction, uploadMediaAssetHubAction } from "@/lib/actions/artist-hub";
+import { deleteMediaAssetHubAction, syncLightroomHubAction, uploadMediaAssetHubAction } from "@/lib/actions/artist-hub";
 import { requireArtistPageAccess } from "@/lib/artist-hub/page";
 import { getGalleryByArtistId } from "@/lib/artist-hub/service";
 
@@ -73,6 +73,13 @@ export default async function ArtistHubGalleryPage({ params }: Params) {
                   <p className="text-xs uppercase tracking-[0.16em] text-gold">{asset.type}</p>
                   <p className="mt-1 text-sm text-white/80">{String(asset.metadata.label ?? asset.source)}</p>
                   <p className="mt-1 text-xs text-white/50">{new Date(asset.createdAt).toLocaleDateString()}</p>
+                  <form action={deleteMediaAssetHubAction} className="mt-3">
+                    <input type="hidden" name="artistId" value={artist.id} />
+                    <input type="hidden" name="assetId" value={asset.id} />
+                    <button type="submit" className="rounded-full border border-rose-500/40 px-3 py-1.5 text-[11px] uppercase tracking-[0.16em] text-rose-200 hover:border-rose-400 hover:text-rose-100">
+                      Eliminar foto
+                    </button>
+                  </form>
                 </div>
               </article>
             );

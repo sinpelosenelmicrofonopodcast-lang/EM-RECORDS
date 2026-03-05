@@ -17,6 +17,7 @@ import {
 } from "@/lib/mock-data";
 import type {
   Artist,
+  ArtistPhoto,
   DemoSubmission,
   EventItem,
   GalleryItem,
@@ -239,6 +240,37 @@ export const getArtistBySlug = cache(async (slug: string): Promise<Artist | null
     return mapArtist(data);
   } catch {
     return mockArtists.find((item) => item.slug === slug) ?? null;
+  }
+});
+
+export const getArtistPhotos = cache(async (artistId: string): Promise<ArtistPhoto[]> => {
+  if (!isSupabaseConfigured()) {
+    return [];
+  }
+
+  try {
+    const service = createServiceClient();
+    const { data, error } = await service
+      .from("media_assets")
+      .select("id,artist_id,type,metadata,created_at")
+      .eq("artist_id", artistId)
+      .in("type", ["photo", "cover"])
+      .order("created_at", { ascending: false })
+      .limit(12);
+
+    if (error || !data) {
+      return [];
+    }
+
+    return data.map((row: any) => ({
+      id: String(row.id),
+      artistId: String(row.artist_id),
+      label: String(row?.metadata?.label ?? row.type ?? "photo"),
+      type: String(row.type) as "photo" | "cover",
+      createdAt: row.created_at ? String(row.created_at) : undefined
+    }));
+  } catch {
+    return [];
   }
 });
 
