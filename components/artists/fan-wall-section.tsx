@@ -50,29 +50,33 @@ export function FanWallSection({ artistSlug, entries }: Props) {
   return (
     <section className="mx-auto w-full max-w-7xl px-6 py-14 md:px-10">
       <p className="text-xs uppercase tracking-[0.22em] text-gold">Fan Wall</p>
-      <div className="mt-4 grid gap-3 md:grid-cols-3">
-        {entries.map((entry) => (
-          <article key={entry.id} className="rounded-2xl border border-white/10 bg-black/45 p-4">
-            <div className="flex items-center gap-3">
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/5 text-xs uppercase tracking-[0.16em] text-white/75">
-                {entry.fanName.slice(0, 1)}
-              </span>
-              <div>
-                <p className="text-sm text-white/80">
-                  {entry.fanName}
-                  {entry.isVerified ? (
-                    <span className="ml-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-emerald-200">
-                      Verified Fan
-                    </span>
-                  ) : null}
-                </p>
-                <p className="text-xs text-white/45">{formatDate(entry.createdAt)}</p>
+      {entries.length > 0 ? (
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          {entries.map((entry) => (
+            <article key={entry.id} className="rounded-2xl border border-white/10 bg-black/45 p-4">
+              <div className="flex items-center gap-3">
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/5 text-xs uppercase tracking-[0.16em] text-white/75">
+                  {entry.fanName.slice(0, 1)}
+                </span>
+                <div>
+                  <p className="text-sm text-white/80">
+                    {entry.fanName}
+                    {entry.isVerified ? (
+                      <span className="ml-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-emerald-200">
+                        Verified Fan
+                      </span>
+                    ) : null}
+                  </p>
+                  <p className="text-xs text-white/45">{formatDate(entry.createdAt)}</p>
+                </div>
               </div>
-            </div>
-            <p className="mt-3 text-sm text-white/78">“{entry.message}”</p>
-          </article>
-        ))}
-      </div>
+              <p className="mt-3 text-sm text-white/78">“{entry.message}”</p>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-4 rounded-xl border border-white/10 bg-black/35 px-4 py-3 text-sm text-white/60">No fan comments yet.</p>
+      )}
 
       <form action={action} className="mt-6 grid gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4 md:grid-cols-3">
         <input type="hidden" name="artistSlug" value={artistSlug} />

@@ -42,15 +42,7 @@ export function ArtistPhotoRotator({ artistSlug, photos }: Props) {
     return null;
   }
 
-  const visibleGrid = [...safePhotos.slice(0, 6)];
-  while (visibleGrid.length < 6) {
-    visibleGrid.push({
-      id: `placeholder-${visibleGrid.length}`,
-      artistId: "",
-      label: "Coming Soon",
-      type: "photo"
-    });
-  }
+  const visibleGrid = safePhotos.slice(0, 6);
 
   const current = safePhotos[activeIndex];
 
@@ -61,18 +53,7 @@ export function ArtistPhotoRotator({ artistSlug, photos }: Props) {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {visibleGrid.map((photo, index) => {
-          const isPlaceholder = photo.id.startsWith("placeholder-");
-          if (isPlaceholder) {
-            return (
-              <div key={photo.id} className="aspect-[4/3] rounded-2xl border border-dashed border-white/15 bg-black/35 p-4">
-                <div className="flex h-full items-end">
-                  <p className="text-[11px] uppercase tracking-[0.16em] text-white/40">Slot {index + 1}</p>
-                </div>
-              </div>
-            );
-          }
-
+        {visibleGrid.map((photo) => {
           const src = photoUrl(artistSlug, photo.id);
           const isActive = safePhotos[activeIndex]?.id === photo.id;
 

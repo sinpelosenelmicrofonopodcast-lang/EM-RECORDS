@@ -224,20 +224,7 @@ export default async function ArtistDetailPage({ params }: Props) {
 
   const discoverArtists = allArtists.filter((item) => item.slug !== artist.slug).slice(0, 3);
 
-  const fanWallFallback =
-    lang === "es"
-      ? [
-          { id: "f-1", fanName: "Fan 1", message: "Leoriel está duro", createdAt: new Date().toISOString(), status: "approved" as const, artistSlug: artist.slug, isVerified: false },
-          { id: "f-2", fanName: "Fan 2", message: "Killeen está contigo", createdAt: new Date().toISOString(), status: "approved" as const, artistSlug: artist.slug, isVerified: false },
-          { id: "f-3", fanName: "Fan 3", message: "Puerto Rico represent", createdAt: new Date().toISOString(), status: "approved" as const, artistSlug: artist.slug, isVerified: false }
-        ]
-      : [
-          { id: "f-1", fanName: "Fan 1", message: "Leoriel is next", createdAt: new Date().toISOString(), status: "approved" as const, artistSlug: artist.slug, isVerified: false },
-          { id: "f-2", fanName: "Fan 2", message: "Killeen stands with you", createdAt: new Date().toISOString(), status: "approved" as const, artistSlug: artist.slug, isVerified: false },
-          { id: "f-3", fanName: "Fan 3", message: "Puerto Rico represent", createdAt: new Date().toISOString(), status: "approved" as const, artistSlug: artist.slug, isVerified: false }
-        ];
-
-  const fanWall = fanWallEntries.length > 0 ? fanWallEntries : fanWallFallback;
+  const fanWall = fanWallEntries;
 
   const discographyItems = artistReleases.slice(0, 12).map((release) => ({
     id: release.id,
