@@ -18,6 +18,7 @@ import {
 import type {
   Artist,
   ArtistPhoto,
+  ArtistPublicInsights,
   DemoSubmission,
   EventItem,
   GalleryItem,
@@ -39,6 +40,9 @@ function mapArtist(row: any): Artist {
     slug: row.slug,
     tagline: row.tagline,
     bio: row.bio,
+    bioShort: row.bio_short ?? null,
+    bioMed: row.bio_med ?? null,
+    bioLong: row.bio_long ?? null,
     heroMediaUrl: row.hero_media_url,
     avatarUrl: row.avatar_url,
     bookingEmail: row.booking_email,
@@ -271,6 +275,62 @@ export const getArtistPhotos = cache(async (artistId: string): Promise<ArtistPho
     }));
   } catch {
     return [];
+  }
+});
+
+export const getArtistReleases = cache(async (artistSlug: string, artistName: string): Promise<Release[]> => {
+  const releases = await getReleases();
+  const normalizedSlug = artistSlug.trim().toLowerCase();
+  const normalizedName = artistName.trim().toLowerCase();
+
+  return releases
+    .filter((item) => {
+      const releaseSlug = (item.artistSlug ?? "").trim().toLowerCase();
+      const releaseName = (item.artistName ?? "").trim().toLowerCase();
+      return releaseSlug === normalizedSlug || releaseName === normalizedName;
+    })
+    .sort((a, b) => +new Date(b.releaseDate) - +new Date(a.releaseDate));
+});
+
+export const getArtistPublicInsights = cache(async (artistId: string): Promise<ArtistPublicInsights> => {
+  const empty: ArtistPublicInsights = {
+    highlights: [],
+    pressQuotes: [],
+    featuredTracks: [],
+    stats: {
+      monthlyListeners: null,
+      followers: null,
+      streams: null,
+      topMarket: null
+    }
+  };
+
+  if (!isSupabaseConfigured()) {
+    return empty;
+  }
+
+  try {
+    const service = createServiceClient();
+    const { data, error } = await service.from("media_kits").select("highlights,press_quotes,featured_tracks,stats").eq("artist_id", artistId).maybeSingle();
+
+    if (error || !data) {
+      return empty;
+    }
+
+    const stats = (data.stats ?? {}) as Record<string, unknown>;
+    return {
+      highlights: Array.isArray(data.highlights) ? data.highlights.map((item: unknown) => String(item)) : [],
+      pressQuotes: Array.isArray(data.press_quotes) ? data.press_quotes.map((item: unknown) => String(item)) : [],
+      featuredTracks: Array.isArray(data.featured_tracks) ? data.featured_tracks.map((item: unknown) => String(item)) : [],
+      stats: {
+        monthlyListeners: stats.monthly_listeners ? String(stats.monthly_listeners) : null,
+        followers: stats.followers ? String(stats.followers) : null,
+        streams: stats.streams ? String(stats.streams) : null,
+        topMarket: stats.top_market ? String(stats.top_market) : null
+      }
+    };
+  } catch {
+    return empty;
   }
 });
 

@@ -8,7 +8,8 @@ export async function SiteHeader() {
   const lang = await getSiteLanguage();
   const navItems = [
     { href: "/artists", label: lang === "es" ? "Artistas" : "Artists" },
-    { href: "/releases", label: lang === "es" ? "Lanzamientos" : "Releases" },
+    { href: "/releases", label: lang === "es" ? "Música" : "Music" },
+    { href: "/gallery", label: lang === "es" ? "Videos" : "Videos" },
     { href: "/events", label: lang === "es" ? "Eventos" : "Events" },
     { href: "/news", label: lang === "es" ? "Prensa" : "Press" },
     { href: "/killeen-next-up", label: "Killeen Next Up" },

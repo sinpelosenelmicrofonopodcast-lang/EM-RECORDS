@@ -4,6 +4,9 @@ export type Artist = {
   slug: string;
   tagline: string;
   bio: string;
+  bioShort?: string | null;
+  bioMed?: string | null;
+  bioLong?: string | null;
   heroMediaUrl: string;
   avatarUrl: string;
   bookingEmail: string;
@@ -31,6 +34,18 @@ export type ArtistPhoto = {
   label: string;
   type: "photo" | "cover";
   createdAt?: string;
+};
+
+export type ArtistPublicInsights = {
+  highlights: string[];
+  pressQuotes: string[];
+  featuredTracks: string[];
+  stats: {
+    monthlyListeners?: string | null;
+    followers?: string | null;
+    streams?: string | null;
+    topMarket?: string | null;
+  };
 };
 
 export type Release = {
