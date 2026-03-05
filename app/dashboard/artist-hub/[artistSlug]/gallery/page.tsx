@@ -1,7 +1,7 @@
 import { ArtistHubModuleHeader } from "@/components/artist-hub/module-header";
 import { syncLightroomHubAction, uploadMediaAssetHubAction } from "@/lib/actions/artist-hub";
 import { requireArtistPageAccess } from "@/lib/artist-hub/page";
-import { getGalleryByArtistId, resolveMaybeSignedUrl } from "@/lib/artist-hub/service";
+import { getGalleryByArtistId } from "@/lib/artist-hub/service";
 
 export const dynamic = "force-dynamic";
 
@@ -62,26 +62,21 @@ export default async function ArtistHubGalleryPage({ params }: Params) {
       <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
         <p className="text-xs uppercase tracking-[0.16em] text-white/55">Asset library</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {await Promise.all(
-            assets.map(async (asset) => {
-              const url =
-                asset.source === "lightroom"
-                  ? `/api/artist-hub/lightroom/asset/${asset.id}?artistId=${artist.id}&size=thumb`
-                  : (await resolveMaybeSignedUrl(asset.thumbUrl, 60 * 60 * 6)) || (await resolveMaybeSignedUrl(asset.url, 60 * 60 * 6));
-              return (
-                <article key={asset.id} className="overflow-hidden rounded-xl border border-white/10 bg-black/40">
-                  <div className="aspect-[4/3] bg-black/70">
-                    {url ? <img src={url} alt={String(asset.metadata.label ?? asset.type)} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-xs uppercase tracking-[0.16em] text-white/35">No preview</div>}
-                  </div>
-                  <div className="p-3">
-                    <p className="text-xs uppercase tracking-[0.16em] text-gold">{asset.type}</p>
-                    <p className="mt-1 text-sm text-white/80">{String(asset.metadata.label ?? asset.source)}</p>
-                    <p className="mt-1 text-xs text-white/50">{new Date(asset.createdAt).toLocaleDateString()}</p>
-                  </div>
-                </article>
-              );
-            })
-          )}
+          {assets.map((asset) => {
+            const previewUrl = `/api/artist-hub/assets/${asset.id}/preview?artistId=${artist.id}&size=thumb`;
+            return (
+              <article key={asset.id} className="overflow-hidden rounded-xl border border-white/10 bg-black/40">
+                <div className="aspect-[4/3] bg-black/70">
+                  <img src={previewUrl} alt={String(asset.metadata.label ?? asset.type)} className="h-full w-full object-cover" loading="lazy" />
+                </div>
+                <div className="p-3">
+                  <p className="text-xs uppercase tracking-[0.16em] text-gold">{asset.type}</p>
+                  <p className="mt-1 text-sm text-white/80">{String(asset.metadata.label ?? asset.source)}</p>
+                  <p className="mt-1 text-xs text-white/50">{new Date(asset.createdAt).toLocaleDateString()}</p>
+                </div>
+              </article>
+            );
+          })}
         </div>
         {assets.length === 0 ? <p className="mt-4 text-sm text-white/60">No gallery assets yet.</p> : null}
       </section>
