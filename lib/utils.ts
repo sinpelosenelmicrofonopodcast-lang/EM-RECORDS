@@ -4,6 +4,17 @@ export function cn(...inputs: ClassValue[]) {
   return clsx(inputs);
 }
 
+export function slugifyText(input: string, maxLength = 72): string {
+  return input
+    .toLowerCase()
+    .trim()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .slice(0, maxLength);
+}
+
 const PRODUCTION_SITE_URL = "https://emrecordsmusic.com";
 
 export function getSiteOrigin(): string {

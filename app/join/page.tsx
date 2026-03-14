@@ -1,21 +1,18 @@
 import type { Metadata } from "next";
 import { submitDemoAction } from "@/lib/actions/site";
+import { InternalLinksBlock } from "@/components/shared/internal-links-block";
 import { SectionTitle } from "@/components/shared/section-title";
 import { getSiteLanguage } from "@/lib/i18n/server";
-import { buildPageMetadata } from "@/lib/seo";
+import { buildCollectionMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = buildPageMetadata({
-  title: "Únete a EM",
-  description: "Envía tu demo al equipo A&R de EM Records y entra al proceso oficial de revisión.",
-  path: "/join",
-  keywords: ["enviar demo", "a&r", "firma disquera", "em records demos"]
-});
+export const metadata: Metadata = buildCollectionMetadata("join");
 
 export default async function JoinPage() {
   const lang = await getSiteLanguage();
 
   return (
     <div className="mx-auto w-full max-w-7xl px-6 py-20 md:px-10">
+      <h1 className="sr-only">{lang === "es" ? "Únete a EM Records" : "Join EM Records"}</h1>
       <SectionTitle
         eyebrow={lang === "es" ? "Únete a EM" : "Join EM"}
         title={lang === "es" ? "Envío de Demos" : "Demo Submissions"}
@@ -66,6 +63,27 @@ export default async function JoinPage() {
           {lang === "es" ? "Enviar Demo" : "Submit Demo"}
         </button>
       </form>
+
+      <InternalLinksBlock
+        title={lang === "es" ? "Antes de Enviar" : "Before You Submit"}
+        links={[
+          {
+            href: "/artists",
+            label: lang === "es" ? "Artistas actuales" : "Current artists",
+            description: lang === "es" ? "Conoce el estándar creativo del roster." : "See the roster creative standard."
+          },
+          {
+            href: "/music",
+            label: lang === "es" ? "Música oficial" : "Official music",
+            description: lang === "es" ? "Escucha el sonido actual del sello." : "Listen to the current label sound."
+          },
+          {
+            href: "/press",
+            label: lang === "es" ? "Prensa" : "Press",
+            description: lang === "es" ? "Lee novedades y roadmap del sello." : "Read latest label updates and roadmap."
+          }
+        ]}
+      />
     </div>
   );
 }

@@ -22,7 +22,7 @@ export async function GET(_: Request, { params }: Params) {
 
   const { data } = await service.from("smartlinks").select("links,release_id").eq("slug", slug).maybeSingle();
   if (!data) {
-    return NextResponse.redirect(absoluteUrl("/releases"));
+    return NextResponse.redirect(absoluteUrl("/music"));
   }
 
   const links = (data.links ?? {}) as Record<string, unknown>;
@@ -32,5 +32,5 @@ export async function GET(_: Request, { params }: Params) {
     return NextResponse.redirect(priority[0]);
   }
 
-  return NextResponse.redirect(absoluteUrl("/releases"));
+  return NextResponse.redirect(absoluteUrl("/music"));
 }

@@ -160,3 +160,261 @@ select
 from public.artists a
 where a.slug = 'nova-k'
 on conflict (artist_id) do nothing;
+
+-- =====================================================
+-- Artist Signing System seed (requires 2026-03-12-artist-signing-system.sql migration)
+-- =====================================================
+
+do $$
+declare
+  v_artist_user_id uuid;
+  v_profile_id uuid;
+  v_artist_profile_id uuid;
+  v_lead_id uuid;
+  v_offer_id uuid;
+  v_contract_id uuid;
+  v_contract_version_id uuid;
+  v_template_id uuid;
+begin
+  select id into v_artist_user_id from auth.users where email = 'artist@emrecords.com' limit 1;
+  select id into v_profile_id from public.profiles where email = 'artist@emrecords.com' limit 1;
+  select id into v_template_id
+  from public.contract_templates
+  where name in ('EM Records Artist Recording Agreement', 'EM Records 50/50 Artist Deal')
+  order by case when name = 'EM Records Artist Recording Agreement' then 0 else 1 end, created_at desc
+  limit 1;
+
+  if v_template_id is null then
+    return;
+  end if;
+
+  insert into public.artist_profiles (
+    user_id,
+    profile_id,
+    legal_name,
+    stage_name,
+    email,
+    phone,
+    country,
+    state,
+    government_name,
+    pro_affiliation,
+    ipi_number,
+    social_links,
+    notes
+  )
+  values (
+    v_artist_user_id,
+    v_profile_id,
+    'Adrian Morales',
+    'Nova K',
+    'artist@emrecords.com',
+    '+1 786-555-0177',
+    'United States',
+    'Florida',
+    'Adrian Morales',
+    'BMI',
+    null,
+    '{"instagram":"https://instagram.com/novak","tiktok":"https://tiktok.com/@novak"}'::jsonb,
+    'Demo artist profile for signing workflow.'
+  )
+  on conflict ((lower(email))) do update set
+    user_id = excluded.user_id,
+    profile_id = excluded.profile_id,
+    legal_name = excluded.legal_name,
+    stage_name = excluded.stage_name,
+    phone = excluded.phone,
+    country = excluded.country,
+    state = excluded.state,
+    government_name = excluded.government_name,
+    pro_affiliation = excluded.pro_affiliation,
+    social_links = excluded.social_links
+  returning id into v_artist_profile_id;
+
+  if v_artist_profile_id is null then
+    select id into v_artist_profile_id from public.artist_profiles where lower(email) = 'artist@emrecords.com' limit 1;
+  end if;
+
+  insert into public.artist_leads (
+    artist_profile_id,
+    legal_name,
+    stage_name,
+    email,
+    phone,
+    country,
+    state,
+    government_name,
+    pro_affiliation,
+    social_links,
+    notes,
+    status,
+    created_by
+  )
+  values (
+    v_artist_profile_id,
+    'Adrian Morales',
+    'Nova K',
+    'artist@emrecords.com',
+    '+1 786-555-0177',
+    'United States',
+    'Florida',
+    'Adrian Morales',
+    'BMI',
+    '{"instagram":"https://instagram.com/novak","tiktok":"https://tiktok.com/@novak"}'::jsonb,
+    'Demo lead preloaded for artist signing system.',
+    'offer_sent',
+    (select id from auth.users where email = 'emrecordsllc@gmail.com' limit 1)
+  )
+  on conflict ((lower(email))) where status not in ('archived', 'declined', 'expired')
+  do update set
+    stage_name = excluded.stage_name,
+    legal_name = excluded.legal_name,
+    phone = excluded.phone,
+    country = excluded.country,
+    state = excluded.state,
+    social_links = excluded.social_links,
+    status = excluded.status
+  returning id into v_lead_id;
+
+  if v_lead_id is null then
+    select id into v_lead_id
+    from public.artist_leads
+    where lower(email) = 'artist@emrecords.com'
+    order by created_at desc
+    limit 1;
+  end if;
+
+  insert into public.deal_offers (
+    artist_lead_id,
+    offer_type,
+    royalty_split_label,
+    royalty_split_artist,
+    advance_amount,
+    term_months,
+    term_description,
+    territory,
+    includes_360,
+    includes_publishing,
+    status,
+    sent_at,
+    created_by
+  )
+  values (
+    v_lead_id,
+    '50_50_artist_deal',
+    50,
+    50,
+    0,
+    24,
+    '24 months',
+    'Worldwide',
+    false,
+    true,
+    'sent',
+    now(),
+    (select id from auth.users where email = 'emrecordsllc@gmail.com' limit 1)
+  )
+  on conflict do nothing
+  returning id into v_offer_id;
+
+  if v_offer_id is null then
+    select id into v_offer_id
+    from public.deal_offers
+    where artist_lead_id = v_lead_id
+    order by created_at desc
+    limit 1;
+  end if;
+
+  insert into public.contracts (
+    artist_lead_id,
+    deal_offer_id,
+    contract_template_id,
+    contract_version_number,
+    rendered_markdown,
+    rendered_html,
+    status,
+    created_by
+  )
+  values (
+    v_lead_id,
+    v_offer_id,
+    v_template_id,
+    1,
+    '# ARTIST RECORDING AGREEMENT
+## EM RECORDS LLC
+
+This Artist Recording Agreement ("Agreement") is entered into effective March 12, 2026.',
+    '<h1>ARTIST RECORDING AGREEMENT</h1><h2>EM RECORDS LLC</h2><p>This Artist Recording Agreement ("Agreement") is entered into effective March 12, 2026.</p>',
+    'offer_sent',
+    (select id from auth.users where email = 'emrecordsllc@gmail.com' limit 1)
+  )
+  on conflict do nothing
+  returning id into v_contract_id;
+
+  if v_contract_id is null then
+    select id into v_contract_id
+    from public.contracts
+    where artist_lead_id = v_lead_id
+    order by created_at desc
+    limit 1;
+  end if;
+
+  insert into public.contract_versions (
+    contract_id,
+    version_number,
+    template_snapshot,
+    variables_snapshot,
+    rendered_markdown,
+    rendered_html,
+    created_by
+  )
+  values (
+    v_contract_id,
+    1,
+    '# ARTIST RECORDING AGREEMENT',
+    '{"artist_legal_name":"Adrian Morales","artist_stage_name":"Nova K","label_legal_entity":"EM Records LLC","effective_date":"2026-03-12","contract_language":"en"}'::jsonb,
+    '# ARTIST RECORDING AGREEMENT
+## EM RECORDS LLC
+
+This Artist Recording Agreement ("Agreement") is entered into effective March 12, 2026.',
+    '<h1>ARTIST RECORDING AGREEMENT</h1><h2>EM RECORDS LLC</h2><p>This Artist Recording Agreement ("Agreement") is entered into effective March 12, 2026.</p>',
+    (select id from auth.users where email = 'emrecordsllc@gmail.com' limit 1)
+  )
+  on conflict (contract_id, version_number) do update set
+    rendered_markdown = excluded.rendered_markdown,
+    rendered_html = excluded.rendered_html
+  returning id into v_contract_version_id;
+
+  update public.contracts
+  set current_version_id = v_contract_version_id
+  where id = v_contract_id
+    and (current_version_id is null or current_version_id <> v_contract_version_id);
+
+  insert into public.onboarding_tasks (artist_lead_id, task_key, title, completed)
+  values
+    (v_lead_id, 'complete_profile', 'Complete profile', true),
+    (v_lead_id, 'upload_id', 'Upload ID', false),
+    (v_lead_id, 'tax_form_placeholder', 'Tax form upload placeholder', false),
+    (v_lead_id, 'sign_agreement', 'Sign agreement', false),
+    (v_lead_id, 'payment_details_placeholder', 'Add payment details placeholder', false),
+    (v_lead_id, 'provide_social_handles', 'Provide social handles', true),
+    (v_lead_id, 'press_photos_placeholder', 'Submit press photos placeholder', false)
+  on conflict (artist_lead_id, task_key) do nothing;
+
+  insert into public.messages (
+    artist_lead_id,
+    sender_user_id,
+    recipient_role,
+    subject,
+    body
+  )
+  values (
+    v_lead_id,
+    (select id from auth.users where email = 'emrecordsllc@gmail.com' limit 1),
+    'artist',
+    'Welcome to EM Records signing portal',
+    'Your agreement is ready for review. Use your secure invite link to verify your email and sign.'
+  )
+  on conflict do nothing;
+end
+$$;

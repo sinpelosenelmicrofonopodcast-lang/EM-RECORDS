@@ -2,34 +2,33 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { getCurrentUserRoleSnapshot } from "@/lib/auth";
 import { hashEpkPassword } from "@/lib/epk";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { normalizeAppleMusicEmbedUrl, normalizeSpotifyEmbedUrl, normalizeYouTubeEmbedUrl } from "@/lib/utils";
+import { enqueueSeoUrl } from "@/lib/seo-queue";
+import {
+  dispatchSocialJobById,
+  maybeAutoQueueArtistPosts,
+  maybeAutoQueueNewsPosts,
+  maybeAutoQueueReleasePosts,
+  processSocialPublishingQueue,
+  publishManualSocialPosts
+} from "@/lib/social-publishing";
+import { absoluteUrl, normalizeAppleMusicEmbedUrl, normalizeSpotifyEmbedUrl, normalizeYouTubeEmbedUrl, slugifyText } from "@/lib/utils";
 
 async function requireAdminClient() {
   if (!isSupabaseConfigured()) {
     throw new Error("Supabase is not configured.");
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const snapshot = await getCurrentUserRoleSnapshot();
+  if (!snapshot) {
     throw new Error("Unauthorized.");
   }
 
-  let isAdmin = user.user_metadata?.role === "admin";
-
-  if (!isAdmin) {
-    const { data: profile, error: profileError } = await supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle();
-    isAdmin = !profileError && Boolean(profile?.is_admin);
-  }
-
-  if (!isAdmin) {
+  if (!snapshot.isAdmin) {
     throw new Error("Forbidden.");
   }
 
@@ -39,9 +38,9 @@ async function requireAdminClient() {
     const service = createServiceClient();
     await service.from("profiles").upsert(
       {
-        id: user.id,
-        email: user.email ?? null,
-        full_name: user.user_metadata?.label ?? "EM Records Admin",
+        id: snapshot.user.id,
+        email: snapshot.user.email ?? null,
+        full_name: snapshot.user.user_metadata?.label ?? "EM Records Admin",
         is_admin: true
       },
       { onConflict: "id", ignoreDuplicates: false }
@@ -87,6 +86,11 @@ function revalidateSocialLinkPaths() {
   revalidatePath("/");
 }
 
+function revalidateSocialPublishingPaths() {
+  revalidatePath("/admin/social-publishing");
+  revalidatePath("/admin");
+}
+
 export async function signInAdminAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
@@ -119,6 +123,7 @@ export async function signOutAdminAction() {
 export async function upsertArtistAction(formData: FormData) {
   const supabase = await requireAdminClient();
   const id = String(formData.get("id") ?? "").trim();
+  const { data: previousArtist } = id ? await supabase.from("artists").select("*").eq("id", id).maybeSingle() : { data: null as any };
   const pressKitFileValue = formData.get("pressKitFile");
   const mediaKitFileValue = formData.get("mediaKitFile");
   const pressKitFile = pressKitFileValue instanceof File && pressKitFileValue.size > 0 ? pressKitFileValue : null;
@@ -133,6 +138,8 @@ export async function upsertArtistAction(formData: FormData) {
   const xUrlInput = String(formData.get("xUrl") ?? "").trim();
   const facebookUrlInput = String(formData.get("facebookUrl") ?? "").trim();
   const platformPreferenceInput = String(formData.get("platformPreference") ?? "").trim().toLowerCase();
+  const isPublishedInput = String(formData.get("isPublished") ?? "") === "on";
+  const publishedAtInput = String(formData.get("publishedAt") ?? "").trim();
   const spotifyEmbedInput = String(formData.get("spotifyEmbed") ?? "").trim();
   const soundcloudEmbedInput = String(formData.get("soundcloudEmbed") ?? "").trim();
   const musicVideoEmbedInput = String(formData.get("musicVideoEmbed") ?? "").trim();
@@ -168,7 +175,10 @@ export async function upsertArtistAction(formData: FormData) {
     platform_preference: ["spotify", "apple", "youtube"].includes(platformPreferenceInput) ? platformPreferenceInput : null,
     press_kit_updated_at: uploadedPressKitUrl || pressKitUrlInput ? new Date().toISOString() : null,
     media_kit_updated_at: uploadedMediaKitUrl || mediaKitUrlInput ? new Date().toISOString() : null,
-    epk_enabled: epkEnabledInput
+    epk_enabled: epkEnabledInput,
+    is_published: isPublishedInput,
+    published_at: isPublishedInput ? (publishedAtInput ? new Date(publishedAtInput).toISOString() : new Date().toISOString()) : null,
+    hero_image_url: String(formData.get("avatarUrl") ?? "").trim() || String(formData.get("heroMediaUrl") ?? "").trim() || null
   };
 
   if (epkPasswordHash) {
@@ -198,16 +208,51 @@ export async function upsertArtistAction(formData: FormData) {
     throw new Error(error.message);
   }
 
+  const { data: nextArtist, error: nextArtistError } = id
+    ? await supabase.from("artists").select("*").eq("id", id).maybeSingle()
+    : await supabase.from("artists").select("*").eq("slug", String(formData.get("slug") ?? "").trim()).maybeSingle();
+
+  if (nextArtistError) {
+    throw new Error(nextArtistError.message);
+  }
+
   revalidatePath("/admin/artists");
   revalidatePath("/artists");
+  revalidateSocialPublishingPaths();
+
+  if (isPublishedInput) {
+    const artistSlug = String(formData.get("slug") ?? "").trim();
+    if (artistSlug) {
+      await enqueueSeoUrl({
+        url: absoluteUrl(`/artists/${artistSlug}`),
+        type: "artist",
+        service: supabase
+      });
+    }
+  }
+
+  try {
+    await maybeAutoQueueArtistPosts({
+      service: supabase,
+      previousArtist,
+      nextArtist
+    });
+  } catch (socialError) {
+    console.error("Artist social publishing failed", socialError);
+  }
 }
 
 export async function upsertReleaseAction(formData: FormData) {
   const supabase = await requireAdminClient();
   const id = String(formData.get("id") ?? "").trim();
+  const { data: previousRelease } = id ? await supabase.from("releases").select("*").eq("id", id).maybeSingle() : { data: null as any };
+  const titleInput = String(formData.get("title") ?? "").trim();
+  const slugInput = slugifyText(String(formData.get("slug") ?? ""));
+  const formatInput = String(formData.get("format") ?? "Single").trim();
   const spotifyEmbedInput = String(formData.get("spotifyEmbed") ?? "").trim();
   const appleEmbedInput = String(formData.get("appleEmbed") ?? "").trim();
   const youtubeEmbedInput = String(formData.get("youtubeEmbed") ?? "").trim();
+  const preSaveUrlInput = String(formData.get("preSaveUrl") ?? "").trim();
   const artistSlugInput = String(formData.get("artistSlug") ?? "").trim();
   const artistNameInput = String(formData.get("artistName") ?? "").trim();
   const videoTitleInput = String(formData.get("videoTitle") ?? "").trim();
@@ -217,7 +262,13 @@ export async function upsertReleaseAction(formData: FormData) {
     .replace(/^feat\.?\s*/i, "");
   const contentStatusInput = String(formData.get("contentStatus") ?? "published").trim();
   const publishAtInput = String(formData.get("publishAt") ?? "").trim();
+  const isPublishedInput = String(formData.get("isPublished") ?? "") === "on";
+  const publishedAtInput = String(formData.get("publishedAt") ?? "").trim();
   let resolvedArtistName = artistNameInput || null;
+  const normalizedType =
+    formatInput.toLowerCase() === "album" ? "album" : formatInput.toLowerCase() === "ep" ? "ep" : "single";
+  const fallbackSlug = slugifyText(titleInput || "release");
+  const resolvedReleaseSlug = slugInput || `${fallbackSlug || "release"}-${(id || crypto.randomUUID()).slice(0, 8)}`;
 
   if (!resolvedArtistName && artistSlugInput) {
     const { data: linkedArtist, error: linkedArtistError } = await supabase.from("artists").select("name").eq("slug", artistSlugInput).maybeSingle();
@@ -228,9 +279,12 @@ export async function upsertReleaseAction(formData: FormData) {
 
   const payloadForUpsert: Record<string, unknown> = {
     id: id || undefined,
-    title: String(formData.get("title") ?? "").trim(),
-    format: String(formData.get("format") ?? "Single").trim(),
+    title: titleInput,
+    slug: resolvedReleaseSlug,
+    format: formatInput,
+    type: normalizedType,
     cover_url: String(formData.get("coverUrl") ?? "").trim(),
+    cover_image_url: String(formData.get("coverUrl") ?? "").trim(),
     release_date: String(formData.get("releaseDate") ?? "").trim(),
     description: String(formData.get("description") ?? "").trim(),
     artist_slug: artistSlugInput || null,
@@ -239,11 +293,14 @@ export async function upsertReleaseAction(formData: FormData) {
     spotify_embed: spotifyEmbedInput ? normalizeSpotifyEmbedUrl(spotifyEmbedInput) : null,
     apple_embed: appleEmbedInput ? normalizeAppleMusicEmbedUrl(appleEmbedInput) : null,
     youtube_embed: youtubeEmbedInput ? normalizeYouTubeEmbedUrl(youtubeEmbedInput) : null,
+    pre_save_url: preSaveUrlInput || null,
     video_title: videoTitleInput || null,
     video_thumbnail_url: videoThumbnailInput || null,
     video_featured: String(formData.get("videoFeatured") ?? "") === "on",
     content_status: contentStatusInput || "published",
     publish_at: publishAtInput ? new Date(publishAtInput).toISOString() : null,
+    is_published: isPublishedInput,
+    published_at: isPublishedInput ? (publishedAtInput ? new Date(publishedAtInput).toISOString() : new Date().toISOString()) : null,
     featured: String(formData.get("featured") ?? "") === "on"
   };
 
@@ -278,9 +335,38 @@ export async function upsertReleaseAction(formData: FormData) {
     throw new Error(error.message);
   }
 
+  const { data: nextRelease, error: nextReleaseError } = id
+    ? await supabase.from("releases").select("*").eq("id", id).maybeSingle()
+    : await supabase.from("releases").select("*").eq("slug", resolvedReleaseSlug).maybeSingle();
+
+  if (nextReleaseError) {
+    throw new Error(nextReleaseError.message);
+  }
+
   revalidatePath("/admin/releases");
   revalidatePath("/");
+  revalidatePath("/music");
   revalidatePath("/releases");
+  revalidatePath("/videos");
+  revalidateSocialPublishingPaths();
+
+  if (isPublishedInput && resolvedReleaseSlug) {
+    await enqueueSeoUrl({
+      url: absoluteUrl(`/music/${resolvedReleaseSlug}`),
+      type: "release",
+      service: supabase
+    });
+  }
+
+  try {
+    await maybeAutoQueueReleasePosts({
+      service: supabase,
+      previousRelease,
+      nextRelease
+    });
+  } catch (socialError) {
+    console.error("Release social publishing failed", socialError);
+  }
 }
 
 export async function upsertEventAction(formData: FormData) {
@@ -319,6 +405,7 @@ export async function upsertEventAction(formData: FormData) {
 export async function upsertNewsAction(formData: FormData) {
   const supabase = await requireAdminClient();
   const id = String(formData.get("id") ?? "").trim();
+  const { data: previousNews } = id ? await supabase.from("news_posts").select("*").eq("id", id).maybeSingle() : { data: null as any };
   const contentStatusInput = String(formData.get("contentStatus") ?? "published").trim();
   const publishAtInput = String(formData.get("publishAt") ?? "").trim();
 
@@ -351,9 +438,29 @@ export async function upsertNewsAction(formData: FormData) {
     throw new Error(error.message);
   }
 
+  const { data: nextNews, error: nextNewsError } = id
+    ? await supabase.from("news_posts").select("*").eq("id", id).maybeSingle()
+    : await supabase.from("news_posts").select("*").eq("slug", String(formData.get("slug") ?? "").trim()).maybeSingle();
+
+  if (nextNewsError) {
+    throw new Error(nextNewsError.message);
+  }
+
   revalidatePath("/admin/news");
+  revalidatePath("/press");
   revalidatePath("/news");
   revalidatePath("/");
+  revalidateSocialPublishingPaths();
+
+  try {
+    await maybeAutoQueueNewsPosts({
+      service: supabase,
+      previousNews,
+      nextNews
+    });
+  } catch (socialError) {
+    console.error("News social publishing failed", socialError);
+  }
 }
 
 export async function updateDemoStatusAction(formData: FormData) {
@@ -661,6 +768,81 @@ export async function deleteSocialLinkAction(formData: FormData) {
   }
 
   revalidateSocialLinkPaths();
+}
+
+export async function upsertSocialPublishingSettingsAction(formData: FormData) {
+  const supabase = await requireAdminClient();
+  const payload = {
+    id: "default",
+    facebook_enabled: String(formData.get("facebookEnabled") ?? "") === "on",
+    instagram_enabled: String(formData.get("instagramEnabled") ?? "") === "on",
+    auto_release_facebook: String(formData.get("autoReleaseFacebook") ?? "") === "on",
+    auto_release_instagram: String(formData.get("autoReleaseInstagram") ?? "") === "on",
+    auto_artist_facebook: String(formData.get("autoArtistFacebook") ?? "") === "on",
+    auto_artist_instagram: String(formData.get("autoArtistInstagram") ?? "") === "on",
+    auto_video_facebook: String(formData.get("autoVideoFacebook") ?? "") === "on",
+    auto_video_instagram: String(formData.get("autoVideoInstagram") ?? "") === "on",
+    auto_news_facebook: String(formData.get("autoNewsFacebook") ?? "") === "on",
+    auto_news_instagram: String(formData.get("autoNewsInstagram") ?? "") === "on",
+    random_bundle_size: Math.min(Math.max(Number.parseInt(String(formData.get("randomBundleSize") ?? "3"), 10) || 3, 1), 6),
+    release_template: String(formData.get("releaseTemplate") ?? "").trim(),
+    artist_template: String(formData.get("artistTemplate") ?? "").trim(),
+    video_template: String(formData.get("videoTemplate") ?? "").trim(),
+    news_template: String(formData.get("newsTemplate") ?? "").trim(),
+    random_template: String(formData.get("randomTemplate") ?? "").trim()
+  };
+
+  const { error } = await supabase.from("social_publish_settings").upsert(payload);
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidateSocialPublishingPaths();
+}
+
+export async function publishSocialPostAction(formData: FormData) {
+  const supabase = await requireAdminClient();
+  const preset = String(formData.get("preset") ?? "custom").trim() as
+    | "custom"
+    | "random_releases"
+    | "latest_release"
+    | "latest_video"
+    | "latest_artist"
+    | "latest_news";
+  const rawLinks = String(formData.get("linkUrls") ?? "")
+    .split("\n")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  await publishManualSocialPosts(supabase, {
+    preset,
+    title: String(formData.get("title") ?? "").trim() || null,
+    message: String(formData.get("message") ?? "").trim(),
+    mediaUrl: String(formData.get("mediaUrl") ?? "").trim() || null,
+    linkUrls: rawLinks,
+    itemCount: Math.min(Math.max(Number.parseInt(String(formData.get("itemCount") ?? "3"), 10) || 3, 1), 6),
+    postToFacebook: String(formData.get("postToFacebook") ?? "") === "on",
+    postToInstagram: String(formData.get("postToInstagram") ?? "") === "on"
+  });
+
+  revalidateSocialPublishingPaths();
+}
+
+export async function processSocialQueueAction() {
+  await requireAdminClient();
+  await processSocialPublishingQueue({ limit: 20 });
+  revalidateSocialPublishingPaths();
+}
+
+export async function retrySocialPostAction(formData: FormData) {
+  const supabase = await requireAdminClient();
+  const jobId = String(formData.get("jobId") ?? "").trim();
+  if (!jobId) {
+    throw new Error("Missing social job id.");
+  }
+
+  await dispatchSocialJobById(supabase, jobId);
+  revalidateSocialPublishingPaths();
 }
 
 export async function updateFanWallEntryStatusAction(formData: FormData) {

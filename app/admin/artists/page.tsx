@@ -40,6 +40,11 @@ export default async function AdminArtistsPage() {
           <input name="tiktokUrl" placeholder="TikTok URL" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
           <input name="xUrl" placeholder="X (Twitter) URL" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
           <input name="facebookUrl" placeholder="Facebook URL" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
+          <label className="flex items-center gap-2 text-sm text-white/75">
+            <input type="checkbox" name="isPublished" defaultChecked className="h-4 w-4 rounded border-white/30 bg-black" />
+            Publish artist publicly
+          </label>
+          <input type="datetime-local" name="publishedAt" placeholder="Published at (optional)" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
           <select name="platformPreference" defaultValue="spotify" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold">
             <option value="spotify">Default platform: Spotify</option>
             <option value="apple">Default platform: Apple Music</option>
@@ -210,6 +215,17 @@ export default async function AdminArtistsPage() {
                 name="facebookUrl"
                 defaultValue={artist.facebookUrl ?? ""}
                 placeholder="Facebook URL"
+                className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold"
+              />
+              <label className="flex items-center gap-2 text-sm text-white/75">
+                <input type="checkbox" name="isPublished" defaultChecked={artist.isPublished !== false} className="h-4 w-4 rounded border-white/30 bg-black" />
+                Publish artist publicly
+              </label>
+              <input
+                type="datetime-local"
+                name="publishedAt"
+                defaultValue={artist.publishedAt ? new Date(artist.publishedAt).toISOString().slice(0, 16) : ""}
+                placeholder="Published at (optional)"
                 className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold"
               />
               <select

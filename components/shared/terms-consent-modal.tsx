@@ -1,30 +1,35 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { normalizeSiteLanguage, SITE_LANG_COOKIE, type SiteLanguage } from "@/lib/i18n";
 import { trackEvent } from "@/lib/tracking";
-import { hasTermsConsentCookie, sanitizeNextPath, TERMS_CONSENT_COOKIE, TERMS_CONSENT_MAX_AGE, TERMS_CONSENT_VALUE } from "@/lib/terms";
-
-const TERMS_KEY = "em_terms_accepted_v1";
+import {
+  getConsentCookieFromDocument,
+  hasTermsConsentCookie,
+  persistClientTermsConsent,
+  TERMS_BANNER_DISMISSED_KEY,
+  TERMS_CONSENT_STORAGE_KEY,
+  TERMS_CONSENT_VALUE
+} from "@/lib/terms";
 
 export function TermsConsentModal() {
-  const router = useRouter();
   const pathname = usePathname();
-  const isAdminRoute = pathname?.startsWith("/admin");
+  const isPrivateRoute = pathname?.startsWith("/admin") || pathname?.startsWith("/dashboard");
   const [open, setOpen] = useState(false);
   const [ready, setReady] = useState(false);
   const [lang, setLang] = useState<SiteLanguage>("es");
 
   useEffect(() => {
-    if (isAdminRoute) {
+    if (isPrivateRoute) {
       setOpen(false);
       setReady(true);
       return;
     }
 
-    const acceptedInStorage = window.localStorage.getItem(TERMS_KEY) === TERMS_CONSENT_VALUE;
+    const acceptedInStorage = window.localStorage.getItem(TERMS_CONSENT_STORAGE_KEY) === TERMS_CONSENT_VALUE;
+    const dismissed = window.localStorage.getItem(TERMS_BANNER_DISMISSED_KEY) === TERMS_CONSENT_VALUE;
     const siteLangCookie = document.cookie
       .split(";")
       .map((item) => item.trim())
@@ -32,81 +37,76 @@ export function TermsConsentModal() {
       ?.split("=")[1];
     setLang(normalizeSiteLanguage(siteLangCookie));
 
-    const consentCookie = document.cookie
-      .split(";")
-      .map((item) => item.trim())
-      .find((item) => item.startsWith(`${TERMS_CONSENT_COOKIE}=`))
-      ?.split("=")[1];
+    const consentCookie = getConsentCookieFromDocument(document.cookie);
     const acceptedInCookie = hasTermsConsentCookie(consentCookie);
     const accepted = acceptedInStorage || acceptedInCookie;
 
     if (accepted && !acceptedInStorage) {
-      window.localStorage.setItem(TERMS_KEY, TERMS_CONSENT_VALUE);
+      window.localStorage.setItem(TERMS_CONSENT_STORAGE_KEY, TERMS_CONSENT_VALUE);
     }
     if (acceptedInStorage && !acceptedInCookie) {
-      document.cookie = `${TERMS_CONSENT_COOKIE}=${TERMS_CONSENT_VALUE}; path=/; max-age=${TERMS_CONSENT_MAX_AGE}; samesite=lax`;
+      persistClientTermsConsent();
     }
 
-    setOpen(!accepted);
+    setOpen(!accepted && !dismissed);
     setReady(true);
-  }, [isAdminRoute]);
+  }, [isPrivateRoute]);
 
-  useEffect(() => {
-    if (!ready) return;
-    document.body.style.overflow = open ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [open, ready]);
-
-  if (!ready || !open || isAdminRoute) {
+  if (!ready || !open || isPrivateRoute) {
     return null;
   }
 
   function acceptTerms() {
-    trackEvent("terms_accepted");
-    window.localStorage.setItem(TERMS_KEY, TERMS_CONSENT_VALUE);
-    document.cookie = `${TERMS_CONSENT_COOKIE}=${TERMS_CONSENT_VALUE}; path=/; max-age=${TERMS_CONSENT_MAX_AGE}; samesite=lax`;
+    persistClientTermsConsent();
+    trackEvent("terms_accepted", { source: "consent_banner" });
     setOpen(false);
+  }
 
-    const nextParam = new URLSearchParams(window.location.search).get("next");
-    const nextPath = sanitizeNextPath(String(nextParam ?? "/"));
-    if (nextPath && nextPath !== "/legal") {
-      router.push(nextPath);
-    }
+  function dismissBanner() {
+    window.localStorage.setItem(TERMS_BANNER_DISMISSED_KEY, TERMS_CONSENT_VALUE);
+    setOpen(false);
   }
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/80 px-4 pb-6 pt-20 sm:items-center">
+    <div className="fixed inset-x-0 bottom-0 z-[120] border-t border-white/15 bg-black/95 px-4 py-4 backdrop-blur-xl">
       <div
-        role="dialog"
-        aria-modal="true"
+        role="region"
+        aria-live="polite"
         aria-labelledby="terms-consent-title"
-        className="w-full max-w-xl rounded-3xl border border-white/15 bg-[#0a0a0a] p-6 shadow-2xl shadow-black/60"
+        className="mx-auto flex w-full max-w-7xl flex-col gap-3 md:flex-row md:items-center md:justify-between"
       >
-        <p className="text-xs uppercase tracking-[0.24em] text-gold">{lang === "es" ? "Aviso Legal" : "Legal Notice"}</p>
-        <h2 id="terms-consent-title" className="mt-3 font-display text-3xl text-white">
-          {lang === "es" ? "Debes aceptar los términos" : "Terms Acceptance Required"}
-        </h2>
-        <p className="mt-3 text-sm leading-relaxed text-white/70">
-          {lang === "es"
-            ? "Al entrar a EM Records LLC, aceptas nuestros Términos de Servicio, Política de Privacidad, Copyright y política DMCA."
-            : "By entering EM Records LLC, you agree to our Terms of Service, Privacy Policy, Copyright and DMCA policy."}
-        </p>
+        <div>
+          <p className="text-xs uppercase tracking-[0.24em] text-gold">{lang === "es" ? "Cookies y Privacidad" : "Cookies and Privacy"}</p>
+          <h2 id="terms-consent-title" className="mt-1 text-base font-semibold text-white">
+            {lang === "es" ? "Usamos cookies esenciales y analíticas opcionales." : "We use essential cookies and optional analytics cookies."}
+          </h2>
+          <p className="mt-1 text-xs leading-relaxed text-white/70">
+            {lang === "es"
+              ? "El sitio funciona completo sin aceptar analytics. Si aceptas, nos ayudas a mejorar la experiencia."
+              : "The site works fully without analytics consent. If you accept, you help us improve the experience."}
+          </p>
+        </div>
 
-        <div className="mt-5 flex flex-wrap gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={dismissBanner}
+            className="rounded-full border border-white/20 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70 transition hover:border-white/40 hover:text-white"
+          >
+            {lang === "es" ? "Continuar sin analytics" : "Continue without analytics"}
+          </button>
           <button
             type="button"
             onClick={acceptTerms}
-            className="rounded-full border border-gold bg-gold px-6 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-black transition hover:-translate-y-0.5"
+            className="rounded-full border border-gold bg-gold px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-black transition hover:-translate-y-0.5"
           >
-            {lang === "es" ? "Aceptar y entrar" : "Accept & Enter"}
+            {lang === "es" ? "Aceptar analytics" : "Accept analytics"}
           </button>
           <Link
             href="/legal"
-            className="rounded-full border border-white/20 px-6 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-white/80 transition hover:border-gold hover:text-gold"
+            className="rounded-full border border-white/20 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/80 transition hover:border-gold hover:text-gold"
           >
-            {lang === "es" ? "Leer términos" : "Read Terms"}
+            {lang === "es" ? "Términos" : "Terms"}
           </Link>
         </div>
       </div>

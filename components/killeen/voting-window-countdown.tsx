@@ -1,23 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { SiteLanguage } from "@/lib/i18n";
+import { splitCountdownMs } from "@/lib/countdown";
 import { getNextUpVotingPhase } from "@/lib/next-up-voting";
+import { useNow } from "@/lib/use-countdown";
 
 type VotingWindowCountdownProps = {
   startsAtIso: string;
   endsAtIso: string;
   lang: SiteLanguage;
 };
-
-function splitTime(ms: number) {
-  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-  const days = Math.floor(totalSeconds / (24 * 3600));
-  const hours = Math.floor((totalSeconds % (24 * 3600)) / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  return { days, hours, minutes, seconds };
-}
 
 function pad(value: number): string {
   return value.toString().padStart(2, "0");
@@ -26,12 +19,7 @@ function pad(value: number): string {
 export function VotingWindowCountdown({ startsAtIso, endsAtIso, lang }: VotingWindowCountdownProps) {
   const startsAt = useMemo(() => new Date(startsAtIso), [startsAtIso]);
   const endsAt = useMemo(() => new Date(endsAtIso), [endsAtIso]);
-  const [now, setNow] = useState(() => new Date());
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(new Date()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
+  const now = useNow(1000);
 
   const phase = getNextUpVotingPhase(now, startsAt, endsAt);
   const target = phase === "before" ? startsAt : phase === "active" ? endsAt : null;
@@ -60,7 +48,7 @@ export function VotingWindowCountdown({ startsAtIso, endsAtIso, lang }: VotingWi
     );
   }
 
-  const remaining = splitTime(target.getTime() - now.getTime());
+  const remaining = splitCountdownMs(target.getTime() - now.getTime());
   const label = phase === "before" ? (lang === "es" ? "Votación inicia en" : "Voting starts in") : lang === "es" ? "Votación cierra en" : "Voting closes in";
 
   return (

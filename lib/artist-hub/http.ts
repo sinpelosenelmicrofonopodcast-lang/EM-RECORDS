@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getHubUserContext } from "@/lib/artist-hub/auth";
 import { createServiceClient } from "@/lib/supabase/service";
+import { slugifyText } from "@/lib/utils";
 
 export function errorJson(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
@@ -21,12 +22,5 @@ export async function requireApiHubContext() {
 }
 
 export function slugify(input: string): string {
-  return input
-    .toLowerCase()
-    .trim()
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "")
-    .slice(0, 72);
+  return slugifyText(input);
 }

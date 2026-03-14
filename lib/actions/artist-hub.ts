@@ -21,6 +21,7 @@ import {
   smartlinkUrl
 } from "@/lib/artist-hub/service";
 import { createServiceClient } from "@/lib/supabase/service";
+import { slugifyText } from "@/lib/utils";
 
 function toArrayFromCsv(raw: string): string[] {
   return raw
@@ -29,15 +30,15 @@ function toArrayFromCsv(raw: string): string[] {
     .filter(Boolean);
 }
 
-function slugify(input: string): string {
-  return input
-    .toLowerCase()
-    .trim()
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "")
-    .slice(0, 72);
+function compactRecord(value: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entry]) => {
+      if (entry == null) return false;
+      if (typeof entry === "string") return entry.trim().length > 0;
+      if (Array.isArray(entry)) return entry.length > 0;
+      return true;
+    })
+  );
 }
 
 const HUB_ASSIGNABLE_ROLES = new Set(["artist", "manager", "booking", "staff", "admin"]);
@@ -89,13 +90,7 @@ export async function createHubArtistAction(formData: FormData) {
 
   if (!name) throw new Error("Artist name is required.");
 
-  const slug = (slugInput || stageName || name)
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "")
-    .slice(0, 72);
+  const slug = slugifyText(slugInput || stageName || name);
 
   const { data, error } = await service
     .from("artists")
@@ -359,7 +354,7 @@ export async function generateSmartlinkHubAction(formData: FormData) {
   if (releaseError || !release) throw new Error("Release not found.");
   if (String(release.artist_id ?? "") !== artistId) throw new Error("Release is not linked to this artist.");
 
-  let baseSlug = slugify(String(formData.get("slug") ?? "").trim() || release.title || `release-${releaseId.slice(0, 8)}`);
+  let baseSlug = slugifyText(String(formData.get("slug") ?? "").trim() || release.title || `release-${releaseId.slice(0, 8)}`);
   if (!baseSlug) baseSlug = `release-${releaseId.slice(0, 8)}`;
 
   let slug = baseSlug;
@@ -878,6 +873,94 @@ export async function updateBrandKitHubAction(formData: FormData) {
   }).catch(() => undefined);
 
   revalidatePath(`/dashboard/artist-hub`);
+}
+
+export async function updateArtistProfileHubAction(formData: FormData) {
+  const artistId = String(formData.get("artistId") ?? "").trim();
+  const { ctx, service } = await requireHubActionContext(artistId);
+
+  const artist = await getArtistByIdForContext(ctx, artistId);
+  if (!artist) throw new Error("Artist not found.");
+
+  const name = String(formData.get("name") ?? "").trim();
+  const tagline = String(formData.get("tagline") ?? "").trim();
+  const bio = String(formData.get("bio") ?? "").trim();
+  const heroMediaUrl = String(formData.get("heroMediaUrl") ?? "").trim();
+  const avatarUrl = String(formData.get("avatarUrl") ?? "").trim();
+  const bookingEmail = String(formData.get("bookingEmail") ?? "").trim();
+
+  if (!name) throw new Error("Artist name is required.");
+  if (!tagline) throw new Error("Artist tagline is required.");
+  if (!bio) throw new Error("Artist bio is required.");
+  if (!heroMediaUrl) throw new Error("Hero media URL is required.");
+  if (!avatarUrl) throw new Error("Avatar URL is required.");
+  if (!bookingEmail) throw new Error("Booking email is required.");
+
+  const socialLinks = compactRecord({
+    ...artist.socialLinks,
+    instagram: String(formData.get("instagramUrl") ?? "").trim() || null,
+    tiktok: String(formData.get("tiktokUrl") ?? "").trim() || null,
+    spotify: String(formData.get("spotifyUrl") ?? "").trim() || null,
+    appleMusic: String(formData.get("appleMusicUrl") ?? "").trim() || null,
+    youtube: String(formData.get("youtubeUrl") ?? "").trim() || null,
+    x: String(formData.get("xUrl") ?? "").trim() || null,
+    facebook: String(formData.get("facebookUrl") ?? "").trim() || null,
+    website: String(formData.get("websiteUrl") ?? "").trim() || null
+  });
+
+  const contacts = compactRecord({
+    ...artist.contacts,
+    bookingEmail,
+    publicEmail: String(formData.get("publicEmail") ?? "").trim() || null,
+    managerName: String(formData.get("managerName") ?? "").trim() || null,
+    managerEmail: String(formData.get("managerEmail") ?? "").trim() || null,
+    phone: String(formData.get("phone") ?? "").trim() || null
+  });
+
+  const payload = {
+    name,
+    stage_name: String(formData.get("stageName") ?? "").trim() || null,
+    tagline,
+    bio,
+    bio_short: String(formData.get("bioShort") ?? "").trim() || null,
+    bio_med: String(formData.get("bioMed") ?? "").trim() || null,
+    bio_long: String(formData.get("bioLong") ?? "").trim() || null,
+    primary_genre: String(formData.get("primaryGenre") ?? "").trim() || null,
+    territory: String(formData.get("territory") ?? "").trim() || null,
+    hero_media_url: heroMediaUrl,
+    avatar_url: avatarUrl,
+    booking_email: bookingEmail,
+    spotify_url: String(formData.get("spotifyUrl") ?? "").trim() || null,
+    apple_music_url: String(formData.get("appleMusicUrl") ?? "").trim() || null,
+    youtube_url: String(formData.get("youtubeUrl") ?? "").trim() || null,
+    instagram_url: String(formData.get("instagramUrl") ?? "").trim() || null,
+    tiktok_url: String(formData.get("tiktokUrl") ?? "").trim() || null,
+    x_url: String(formData.get("xUrl") ?? "").trim() || null,
+    facebook_url: String(formData.get("facebookUrl") ?? "").trim() || null,
+    contacts,
+    social_links: socialLinks
+  };
+
+  const { error } = await service.from("artists").update(payload).eq("id", artistId);
+  if (error) throw new Error(error.message);
+
+  await insertAuditLog({
+    actorUserId: ctx.user.id,
+    artistId,
+    action: "update_artist_profile",
+    entityType: "artist",
+    entityId: artistId,
+    details: {
+      updatedFields: Object.keys(payload)
+    }
+  }).catch(() => undefined);
+
+  revalidatePath("/dashboard/artist-hub");
+  revalidatePath(`/dashboard/artist-hub/${artist.slug}`);
+  revalidatePath(`/dashboard/artist-hub/${artist.slug}/settings`);
+  revalidatePath("/");
+  revalidatePath("/artists");
+  revalidatePath(`/artists/${artist.slug}`);
 }
 
 export async function setFeatureFlagHubAction(formData: FormData) {

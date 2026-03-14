@@ -1,3 +1,5 @@
+import { hasClientTermsConsent } from "@/lib/terms";
+
 export type TrackEventPayload = {
   event: string;
   path?: string;
@@ -24,6 +26,7 @@ function postEvent(payload: TrackEventPayload) {
 
 export function trackEvent(event: string, metadata?: Record<string, unknown>) {
   if (typeof window === "undefined") return;
+  if (!hasClientTermsConsent()) return;
 
   postEvent({
     event,

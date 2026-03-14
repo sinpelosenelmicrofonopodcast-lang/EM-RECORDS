@@ -70,7 +70,7 @@ export function Hero({ lang }: HeroProps) {
             {lang === "es" ? "Explorar artistas" : "Explore Artists"}
           </ButtonLink>
           <ButtonLink
-            href="/releases"
+            href="/music"
             variant="ghost"
             onClick={() => trackEvent("hero_cta_click", { cta: "latest_release" })}
           >

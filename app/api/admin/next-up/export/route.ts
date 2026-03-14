@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUserRoleSnapshot } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/service";
 
 function toCsv(rows: Array<Record<string, unknown>>): string {
@@ -12,22 +12,12 @@ function toCsv(rows: Array<Record<string, unknown>>): string {
 }
 
 export async function GET() {
-  const supabase = await createClient();
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const snapshot = await getCurrentUserRoleSnapshot();
+  if (!snapshot) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let isAdmin = user.user_metadata?.role === "admin";
-  if (!isAdmin) {
-    const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle();
-    isAdmin = Boolean(profile?.is_admin);
-  }
-
-  if (!isAdmin) {
+  if (!snapshot.isAdmin) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

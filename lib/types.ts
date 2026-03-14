@@ -7,6 +7,9 @@ export type Artist = {
   bioShort?: string | null;
   bioMed?: string | null;
   bioLong?: string | null;
+  genre?: string | null;
+  language?: string | null;
+  heroImageUrl?: string | null;
   heroMediaUrl: string;
   avatarUrl: string;
   bookingEmail: string;
@@ -29,6 +32,9 @@ export type Artist = {
   mediaKitUpdatedAt?: string | null;
   epkEnabled?: boolean;
   createdAt?: string;
+  updatedAt?: string;
+  publishedAt?: string | null;
+  isPublished?: boolean;
 };
 
 export type ArtistPhoto = {
@@ -63,11 +69,14 @@ export type FanWallEntry = {
 
 export type Release = {
   id: string;
+  slug?: string | null;
   title: string;
   format: "Single" | "EP" | "Album";
+  releaseType?: "single" | "ep" | "album" | null;
   coverUrl: string;
   releaseDate: string;
   description: string;
+  preSaveUrl?: string | null;
   artistSlug?: string | null;
   artistName?: string | null;
   featuring?: string | null;
@@ -80,6 +89,9 @@ export type Release = {
   featured: boolean;
   contentStatus?: "draft" | "scheduled" | "published";
   publishAt?: string | null;
+  updatedAt?: string;
+  publishedAt?: string | null;
+  isPublished?: boolean;
 };
 
 export type BookingInquiry = {
@@ -210,6 +222,49 @@ export type SocialLink = {
   url: string;
   sortOrder: number;
   isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type SocialPublishingSettings = {
+  id: string;
+  facebookEnabled: boolean;
+  instagramEnabled: boolean;
+  autoReleaseFacebook: boolean;
+  autoReleaseInstagram: boolean;
+  autoArtistFacebook: boolean;
+  autoArtistInstagram: boolean;
+  autoVideoFacebook: boolean;
+  autoVideoInstagram: boolean;
+  autoNewsFacebook: boolean;
+  autoNewsInstagram: boolean;
+  randomBundleSize: number;
+  releaseTemplate: string;
+  artistTemplate: string;
+  videoTemplate: string;
+  newsTemplate: string;
+  randomTemplate: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type SocialPostJob = {
+  id: string;
+  platform: "facebook" | "instagram";
+  status: "pending" | "processing" | "sent" | "failed" | "skipped";
+  contentType: "manual" | "release" | "artist" | "video" | "news";
+  triggerType: string;
+  contentId?: string | null;
+  title?: string | null;
+  message: string;
+  linkUrls: string[];
+  primaryLinkUrl?: string | null;
+  mediaUrl?: string | null;
+  metadata?: Record<string, unknown>;
+  attemptCount: number;
+  lastError?: string | null;
+  externalPostId?: string | null;
+  postedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };

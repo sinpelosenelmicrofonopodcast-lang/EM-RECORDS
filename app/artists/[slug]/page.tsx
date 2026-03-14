@@ -10,11 +10,12 @@ import { LazyEmbedFrame } from "@/components/artists/lazy-embed-frame";
 import { StickyStreamPlayer } from "@/components/artists/sticky-stream-player";
 import { TopTracksList } from "@/components/artists/top-tracks-list";
 import { VideosShowcase } from "@/components/artists/videos-showcase";
+import { InternalLinksBlock } from "@/components/shared/internal-links-block";
 import { SectionTitle } from "@/components/shared/section-title";
 import { getSiteLanguage } from "@/lib/i18n/server";
-import { getArtistBySlug, getArtistPhotos, getArtistPublicInsights, getArtistReleases, getArtists, getFanWallEntriesByArtistSlug, getUpcomingEvents } from "@/lib/queries";
-import { buildPageMetadata } from "@/lib/seo";
-import { absoluteUrl, formatDate, getSpotifyEmbedHeight, normalizeImageUrl, normalizeSoundCloudEmbedUrl, normalizeSpotifyEmbedUrl, normalizeYouTubeEmbedUrl, toJsonLd } from "@/lib/utils";
+import { getArtistPhotos, getArtistPublicInsights, getArtistReleases, getFanWallEntriesByArtistSlug, getPublishedArtistBySlug, getPublishedArtists, getUpcomingEvents } from "@/lib/queries";
+import { buildArtistMetadata, buildMusicGroupJsonLd, buildPageMetadata } from "@/lib/seo";
+import { formatDate, getSpotifyEmbedHeight, normalizeImageUrl, normalizeSoundCloudEmbedUrl, normalizeSpotifyEmbedUrl, normalizeYouTubeEmbedUrl, toJsonLd } from "@/lib/utils";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -88,7 +89,7 @@ function inferVideoLabel(title: string): string {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const artist = await getArtistBySlug(slug);
+  const artist = await getPublishedArtistBySlug(slug);
 
   if (!artist) {
     return buildPageMetadata({
@@ -99,20 +100,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     });
   }
 
-  return buildPageMetadata({
-    title: `${artist.name} | Official Artist Page | EM Records`,
-    description: `Discover ${artist.name}, Puerto Rican urban artist under EM Records. Watch music videos, stream latest releases and book shows.`,
-    path: `/artists/${slug}`,
-    type: "profile",
-    image: normalizeImageUrl(artist.avatarUrl),
-    keywords: [artist.name, "official artist page", "EM Records", "latin urban"]
+  return buildArtistMetadata({
+    artistName: artist.name,
+    artistSlug: slug,
+    image: normalizeImageUrl(artist.avatarUrl)
   });
 }
 
 export default async function ArtistDetailPage({ params }: Props) {
   const lang = await getSiteLanguage();
   const { slug } = await params;
-  const artist = await getArtistBySlug(slug);
+  const artist = await getPublishedArtistBySlug(slug);
 
   if (!artist) {
     notFound();
@@ -123,7 +121,7 @@ export default async function ArtistDetailPage({ params }: Props) {
     getArtistPhotos(artist.id),
     getArtistReleases(artist.slug, artist.name),
     getArtistPublicInsights(artist.id),
-    getArtists(),
+    getPublishedArtists(),
     getFanWallEntriesByArtistSlug(artist.slug)
   ]);
 
@@ -150,16 +148,14 @@ export default async function ArtistDetailPage({ params }: Props) {
     { label: "Spotify", href: artist.spotifyUrl }
   ].filter((item): item is { label: string; href: string } => Boolean(item.href));
 
-  const artistSchema = {
-    "@context": "https://schema.org",
-    "@type": "MusicGroup",
+  const artistSchema = buildMusicGroupJsonLd({
     name: artist.name,
-    url: absoluteUrl(`/artists/${artist.slug}`),
+    path: `/artists/${artist.slug}`,
     description: artist.bio,
-    image: /^https?:\/\//i.test(artist.avatarUrl) ? artist.avatarUrl : absoluteUrl(artist.avatarUrl),
+    image: artist.avatarUrl,
     sameAs: socialLinks.map((item) => item.href),
-    genre: "Latin Urban"
-  };
+    genre: artist.genre || "Latin Urban"
+  });
 
   const aboutText = firstParagraph(artist.bioShort || artist.bioMed || artist.bio);
   const fallbackHighlights =
@@ -361,6 +357,26 @@ export default async function ArtistDetailPage({ params }: Props) {
           {soundcloudEmbedSrc ? <LazyEmbedFrame title="SoundCloud" src={soundcloudEmbedSrc} height={220} /> : null}
           {!spotifyEmbedSrc && !soundcloudEmbedSrc ? <p className="text-sm text-white/60">No player configured yet.</p> : null}
         </div>
+        <InternalLinksBlock
+          title={lang === "es" ? "Explora Más" : "Explore More"}
+          links={[
+            {
+              href: "/music",
+              label: lang === "es" ? "Música" : "Music",
+              description: lang === "es" ? "Catálogo oficial de lanzamientos EM Records." : "Official EM Records release catalog."
+            },
+            {
+              href: "/videos",
+              label: lang === "es" ? "Videos" : "Videos",
+              description: lang === "es" ? "Mira videoclips y visualizers oficiales." : "Watch official videos and visualizers."
+            },
+            {
+              href: "/press",
+              label: lang === "es" ? "Prensa" : "Press",
+              description: lang === "es" ? "Noticias y cobertura editorial del sello." : "News and editorial coverage."
+            }
+          ]}
+        />
       </section>
 
       <section className="mx-auto w-full max-w-7xl px-6 py-12 md:px-10">
@@ -474,7 +490,7 @@ export default async function ArtistDetailPage({ params }: Props) {
               Download Media Kit
             </a>
           ) : (
-            <Link href="/news" className="focus-gold mt-5 inline-block text-sm text-gold underline underline-offset-4">
+            <Link href="/press" className="focus-gold mt-5 inline-block text-sm text-gold underline underline-offset-4">
               View Press
             </Link>
           )}

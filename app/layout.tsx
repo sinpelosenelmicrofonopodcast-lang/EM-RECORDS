@@ -54,7 +54,7 @@ export const metadata: Metadata = {
     siteName: "EM Records LLC",
     images: [
       {
-        url: absoluteUrl("/images/em-logo-og.svg"),
+        url: absoluteUrl("/og-default.jpg"),
         width: 1200,
         height: 630,
         alt: "EM Records LLC"
@@ -67,7 +67,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "EM Records LLC",
     description: "Dark modern latin urban label with international vision.",
-    images: [absoluteUrl("/images/em-logo-og.svg")]
+    images: [absoluteUrl("/og-default.jpg")]
   }
 };
 

@@ -1,5 +1,19 @@
 {
   "framework": "nextjs",
   "installCommand": "pnpm install",
-  "buildCommand": "pnpm build"
+  "buildCommand": "pnpm build",
+  "crons": [
+    {
+      "path": "/api/cron/seo",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/seo-daily",
+      "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/cron/social",
+      "schedule": "*/15 * * * *"
+    }
+  ]
 }

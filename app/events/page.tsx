@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { InternalLinksBlock } from "@/components/shared/internal-links-block";
 import { SectionTitle } from "@/components/shared/section-title";
 import { getSiteLanguage } from "@/lib/i18n/server";
 import { getUpcomingEvents } from "@/lib/queries";
@@ -62,6 +63,7 @@ export default async function EventsPage() {
   return (
     <div className="mx-auto w-full max-w-7xl px-6 py-20 md:px-10">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLd(eventsSchema) }} />
+      <h1 className="sr-only">{lang === "es" ? "Eventos de EM Records" : "EM Records events"}</h1>
       <SectionTitle
         eyebrow={lang === "es" ? "Eventos / Conciertos" : "Events / Concerts"}
         title={lang === "es" ? "Calendario de Tours" : "Tour Calendar"}
@@ -115,6 +117,27 @@ export default async function EventsPage() {
           </article>
         ))}
       </div>
+
+      <InternalLinksBlock
+        title={lang === "es" ? "Explora Más" : "Explore More"}
+        links={[
+          {
+            href: "/artists",
+            label: lang === "es" ? "Artistas" : "Artists",
+            description: lang === "es" ? "Conoce quién está en tarima." : "See who is taking the stage."
+          },
+          {
+            href: "/music",
+            label: lang === "es" ? "Música" : "Music",
+            description: lang === "es" ? "Escucha el catálogo oficial." : "Stream the official catalog."
+          },
+          {
+            href: "/press",
+            label: lang === "es" ? "Prensa" : "Press",
+            description: lang === "es" ? "Cobertura de eventos y noticias." : "Event coverage and news."
+          }
+        ]}
+      />
     </div>
   );
 }

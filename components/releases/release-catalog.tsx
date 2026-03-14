@@ -18,6 +18,8 @@ type ReleaseCatalogItem = {
   artistName: string;
   artistSlug: string | null;
   featuring: string | null;
+  preSaveUrl: string | null;
+  comingSoon: boolean;
   spotifyEmbed: string | null;
   appleEmbed: string | null;
   youtubeEmbed: string | null;
@@ -167,15 +169,15 @@ export function ReleaseCatalog({ lang, items }: ReleaseCatalogProps) {
     <>
       <section className="mx-auto mt-8 w-full max-w-[1100px] space-y-5">
         {mappedItems.map((item, index) => {
-          const hasVideo = Boolean(item.youtubeEmbed);
+          const hasVideo = !item.comingSoon && Boolean(item.youtubeEmbed);
           const audioEmbed = item.spotifyEmbed || item.appleEmbed;
-          const hasAudioPreview = Boolean(audioEmbed);
+          const hasAudioPreview = !item.comingSoon && Boolean(audioEmbed);
           const audioHeight = item.spotifyEmbed ? 80 : 175;
           const embeddedPlatform: "spotify" | "apple" | null = item.spotifyEmbed ? "spotify" : item.appleEmbed ? "apple" : null;
           const showSpotifyChip = Boolean(item.spotifyLink) && embeddedPlatform !== "spotify";
           const showAppleChip = Boolean(item.appleLink) && embeddedPlatform !== "apple";
           const showYouTubeChip = Boolean(item.youtubeLink);
-          const topGridClass = hasVideo ? "md:grid-cols-[120px_minmax(0,1fr)_208px]" : "md:grid-cols-[120px_minmax(0,1fr)]";
+          const topGridClass = hasVideo || item.comingSoon ? "md:grid-cols-[120px_minmax(0,1fr)_208px]" : "md:grid-cols-[120px_minmax(0,1fr)]";
 
           return (
             <article
@@ -216,6 +218,11 @@ export function ReleaseCatalog({ lang, items }: ReleaseCatalogProps) {
                   <p className="mt-2 text-[12px] text-white/54">
                     {lang === "es" ? "Lanzamiento" : "Release"}: {item.releaseDateLabel}
                   </p>
+                  {item.comingSoon ? (
+                    <div className="mt-2 inline-flex rounded-full border border-gold/50 bg-gold/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-gold">
+                      {lang === "es" ? "Próximamente" : "Coming soon"}
+                    </div>
+                  ) : null}
 
                   <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
                     {showSpotifyChip && item.spotifyLink ? (
@@ -244,6 +251,28 @@ export function ReleaseCatalog({ lang, items }: ReleaseCatalogProps) {
                     ) : null}
                   </div>
                 </div>
+
+                {item.comingSoon ? (
+                  <div className="shrink-0 space-y-2 md:w-[208px]">
+                    {item.preSaveUrl ? (
+                      <a
+                        href={item.preSaveUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex h-9 w-full items-center justify-center rounded-lg border border-gold/60 bg-gold/10 px-3 text-xs font-semibold uppercase tracking-[0.14em] text-gold transition duration-200 ease-in-out hover:border-gold hover:bg-gold/20"
+                        onClick={() =>
+                          trackEvent("release_presave_click", { releaseId: item.id, releaseTitle: item.title, source: "catalog_card" })
+                        }
+                      >
+                        {lang === "es" ? "Pre-save" : "Pre-save"}
+                      </a>
+                    ) : (
+                      <div className="inline-flex h-9 w-full items-center justify-center rounded-lg border border-white/15 bg-black/25 px-3 text-xs uppercase tracking-[0.14em] text-white/45">
+                        {lang === "es" ? "Pre-save pronto" : "Pre-save soon"}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
 
                 {hasVideo ? (
                   <div className="shrink-0 space-y-2 md:w-[208px]">

@@ -578,6 +578,7 @@ async function sendTransactionalEmail(args: { to: string; subject: string; html:
 }
 
 const NEXT_UP_PAGE = "/killeen-next-up";
+const NEXT_UP_MAX_FILE_BYTES = 24 * 1024 * 1024;
 
 function nextUpStatusUrl(section: "submit-demo" | "competencia", query: string): string {
   return `${NEXT_UP_PAGE}?${query}#${section}`;
@@ -592,7 +593,9 @@ function redirectNextUpVote(status: string): never {
 }
 
 export async function submitNextUpDemoAction(formData: FormData) {
-  const stageName = String(formData.get("stageName") ?? "").trim();
+  const stageName = String(formData.get("stageName") ?? "")
+    .trim()
+    .replace(/\s+/g, " ");
   const legalName = String(formData.get("legalName") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const phone = String(formData.get("phone") ?? "").trim();
@@ -611,6 +614,10 @@ export async function submitNextUpDemoAction(formData: FormData) {
 
   if (!stageName || !legalName || !email || !phone || !city || (!demoUrlInput && !demoFile) || !acceptedTerms) {
     redirectNextUpDemo("invalid");
+  }
+
+  if (demoFile && demoFile.size > NEXT_UP_MAX_FILE_BYTES) {
+    redirectNextUpDemo("file_too_large");
   }
 
   if (!isSupabaseConfigured()) {
@@ -648,7 +655,7 @@ export async function submitNextUpDemoAction(formData: FormData) {
       });
 
       if (uploadError) {
-        redirectNextUpDemo("error");
+        redirectNextUpDemo("upload");
       }
 
       const {
@@ -658,7 +665,7 @@ export async function submitNextUpDemoAction(formData: FormData) {
       demoUrl = publicUrl;
     }
 
-    const { error } = await service.from("next_up_submissions").insert({
+    const payloadForInsert: Record<string, unknown> = {
       stage_name: stageName,
       legal_name: legalName,
       email,
@@ -670,10 +677,27 @@ export async function submitNextUpDemoAction(formData: FormData) {
       status: "pending",
       ip_address: ip,
       ip_hash: hashIp(ip)
-    });
+    };
 
-    if (error) {
-      redirectNextUpDemo("error");
+    let insertError: { message?: string } | null = null;
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      const { error } = await service.from("next_up_submissions").insert(payloadForInsert);
+      insertError = error;
+      if (!insertError) break;
+
+      const missingColumn = String(insertError.message || "").match(/'([^']+)'/)?.[1];
+      if (!missingColumn || !(missingColumn in payloadForInsert)) {
+        break;
+      }
+      delete payloadForInsert[missingColumn];
+    }
+
+    if (insertError) {
+      const message = String(insertError.message || "").toLowerCase();
+      if (message.includes("duplicate key") || message.includes("unique")) {
+        redirectNextUpDemo("duplicate_stage");
+      }
+      redirectNextUpDemo("db");
     }
 
     await logSiteEvent("next_up_demo_submitted", {

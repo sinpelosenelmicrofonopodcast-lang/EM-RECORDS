@@ -19,6 +19,7 @@ export default async function AdminReleasesPage() {
         <p className="text-xs uppercase tracking-[0.18em] text-white/55">Create new release</p>
         <form action={upsertReleaseAction} className="mt-4 grid gap-3 md:grid-cols-2">
           <input name="title" required placeholder="Title" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
+          <input name="slug" placeholder="Slug (optional)" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
           <select name="format" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold">
             <option>Single</option>
             <option>EP</option>
@@ -48,6 +49,7 @@ export default async function AdminReleasesPage() {
           <input name="spotifyEmbed" placeholder="Spotify embed URL" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
           <input name="appleEmbed" placeholder="Apple embed URL" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
           <input name="youtubeEmbed" placeholder="YouTube embed URL" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold md:col-span-2" />
+          <input name="preSaveUrl" placeholder="Pre-save URL (coming soon)" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold md:col-span-2" />
           <input name="videoTitle" placeholder="Video title (optional)" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
           <input name="videoThumbnailUrl" placeholder="Video thumbnail URL (optional)" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
           <select name="contentStatus" defaultValue="published" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold">
@@ -56,6 +58,11 @@ export default async function AdminReleasesPage() {
             <option value="draft">draft</option>
           </select>
           <input type="datetime-local" name="publishAt" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
+          <label className="flex items-center gap-2 text-sm text-white/75">
+            <input type="checkbox" name="isPublished" defaultChecked className="h-4 w-4 rounded border-white/30 bg-black" />
+            Publish release publicly
+          </label>
+          <input type="datetime-local" name="publishedAt" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
 
           <label className="md:col-span-2 flex items-center gap-2 text-sm text-white/75">
             <input type="checkbox" name="featured" className="h-4 w-4 rounded border-white/30 bg-black" />
@@ -87,6 +94,12 @@ export default async function AdminReleasesPage() {
                 required
                 defaultValue={release.title}
                 placeholder="Title"
+                className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold"
+              />
+              <input
+                name="slug"
+                defaultValue={release.slug ?? ""}
+                placeholder="Slug (optional)"
                 className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold"
               />
               <select
@@ -163,6 +176,12 @@ export default async function AdminReleasesPage() {
                 className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold md:col-span-2"
               />
               <input
+                name="preSaveUrl"
+                defaultValue={release.preSaveUrl ?? ""}
+                placeholder="Pre-save URL (coming soon)"
+                className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold md:col-span-2"
+              />
+              <input
                 name="videoTitle"
                 defaultValue={release.videoTitle ?? ""}
                 placeholder="Video title (optional)"
@@ -187,6 +206,16 @@ export default async function AdminReleasesPage() {
                 type="datetime-local"
                 name="publishAt"
                 defaultValue={release.publishAt ? new Date(release.publishAt).toISOString().slice(0, 16) : ""}
+                className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold"
+              />
+              <label className="flex items-center gap-2 text-sm text-white/75">
+                <input type="checkbox" name="isPublished" defaultChecked={release.isPublished !== false} className="h-4 w-4 rounded border-white/30 bg-black" />
+                Publish release publicly
+              </label>
+              <input
+                type="datetime-local"
+                name="publishedAt"
+                defaultValue={release.publishedAt ? new Date(release.publishedAt).toISOString().slice(0, 16) : ""}
                 className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold"
               />
 
@@ -215,7 +244,9 @@ export default async function AdminReleasesPage() {
               {release.title} · {release.format} · {formatDate(release.releaseDate)} ·{" "}
               {artists.find((artist) => artist.slug === release.artistSlug)?.name ?? release.artistName ?? "No artist"} ·{" "}
               {release.featuring ? `feat. ${release.featuring} · ` : ""}
-              {release.contentStatus ?? "published"} {release.featured ? "· FEATURED" : ""}
+              {release.contentStatus ?? "published"}
+              {release.preSaveUrl ? " · PRE-SAVE" : ""}
+              {release.featured ? " · FEATURED" : ""}
             </div>
           ))}
         </div>

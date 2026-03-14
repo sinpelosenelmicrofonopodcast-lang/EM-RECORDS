@@ -82,8 +82,8 @@ export default async function NewsDetailPage({ params }: Props) {
       {
         "@type": "ListItem",
         position: 2,
-        name: "Noticias",
-        item: absoluteUrl("/news")
+        name: lang === "es" ? "Prensa" : "Press",
+        item: absoluteUrl("/press")
       },
       {
         "@type": "ListItem",
@@ -98,8 +98,8 @@ export default async function NewsDetailPage({ params }: Props) {
     <div className="mx-auto w-full max-w-5xl px-6 py-20 md:px-10">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLd(articleSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLd(breadcrumbSchema) }} />
-      <Link href="/news" className="text-xs uppercase tracking-[0.22em] text-gold hover:underline">
-        {lang === "es" ? "Volver a Noticias" : "Back to News"}
+      <Link href="/press" className="text-xs uppercase tracking-[0.22em] text-gold hover:underline">
+        {lang === "es" ? "Volver a Prensa" : "Back to Press"}
       </Link>
 
       <p className="mt-8 text-xs uppercase tracking-[0.22em] text-gold">{article.category}</p>

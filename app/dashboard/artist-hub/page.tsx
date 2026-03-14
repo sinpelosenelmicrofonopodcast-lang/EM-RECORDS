@@ -17,6 +17,11 @@ export default async function ArtistHubHomePage() {
           Launch center, media kit, documents, content approval and reporting in one secure portal.
         </p>
         <p className="mt-3 text-xs uppercase tracking-[0.16em] text-white/45">Signed in as {ctx.user.email ?? ctx.user.id}</p>
+        <div className="mt-4">
+          <Link href="/dashboard/signing" className="rounded-full border border-gold px-4 py-2 text-xs uppercase tracking-[0.16em] text-gold">
+            Artist Signing Portal
+          </Link>
+        </div>
       </header>
 
       <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">

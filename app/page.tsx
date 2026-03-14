@@ -147,7 +147,7 @@ export default async function Home() {
                 <p className="mt-3 text-sm leading-relaxed text-white/65">{featuredRelease.description}</p>
 
                 <div className="mt-4 flex flex-wrap gap-3">
-                  <ButtonLink href="/releases">{lang === "es" ? "Ver discografía" : "View Discography"}</ButtonLink>
+                  <ButtonLink href="/music">{lang === "es" ? "Ver discografía" : "View Discography"}</ButtonLink>
                   <ButtonLink href="/licensing" variant="ghost">
                     {lang === "es" ? "Licenciar este sonido" : "License This Sound"}
                   </ButtonLink>
@@ -435,7 +435,7 @@ export default async function Home() {
               ? "Acceso premium, contenido behind-the-scenes, merch exclusivo y eventos solo para miembros."
               : "Premium access, behind-the-scenes drops, gated merch and members-only events."}
           </p>
-          <ButtonLink href="/news" className="mt-6" variant="ghost">
+          <ButtonLink href="/press" className="mt-6" variant="ghost">
             {lang === "es" ? "Seguir novedades" : "Follow Updates"}
           </ButtonLink>
         </article>

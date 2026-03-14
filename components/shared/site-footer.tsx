@@ -27,8 +27,8 @@ export async function SiteFooter() {
             <Link href="/artists" className="hover:text-gold">
               Artists
             </Link>
-            <Link href="/releases" className="hover:text-gold">
-              Releases
+            <Link href="/music" className="hover:text-gold">
+              Music
             </Link>
             <Link href="/join" className="hover:text-gold">
               Join EM
@@ -36,7 +36,7 @@ export async function SiteFooter() {
             <Link href="/events" className="hover:text-gold">
               Booking
             </Link>
-            <Link href="/news" className="hover:text-gold">
+            <Link href="/press" className="hover:text-gold">
               Press
             </Link>
           </div>

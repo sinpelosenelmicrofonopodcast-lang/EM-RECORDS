@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUserRoleSnapshot } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { mockTicketOrders } from "@/lib/mock-data";
+import { createServiceClient } from "@/lib/supabase/service";
 
 export async function GET() {
   if (!isSupabaseConfigured()) {
@@ -9,24 +10,17 @@ export async function GET() {
   }
 
   try {
-    const supabase = await createClient();
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    const snapshot = await getCurrentUserRoleSnapshot();
+    if (!snapshot) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (user.user_metadata?.role !== "admin") {
-      const { data: profile, error: profileError } = await supabase.from("profiles").select("is_admin").eq("id", user.id).maybeSingle();
-
-      if (profileError || !profile?.is_admin) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      }
+    if (!snapshot.isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { data, error } = await supabase
+    const service = createServiceClient();
+    const { data, error } = await service
       .from("ticket_orders")
       .select("id, event_id, event_title, buyer_email, quantity, amount_total, currency, qr_code_value, qr_code_data_url, status, created_at")
       .order("created_at", { ascending: false })

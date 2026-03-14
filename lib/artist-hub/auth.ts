@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import type { User } from "@supabase/supabase-js";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUserRoleSnapshot } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/service";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import type { HubMembership, HubRole, HubUserContext } from "@/lib/artist-hub/types";
@@ -19,27 +19,21 @@ function mapMembership(row: any): HubMembership {
 export async function getHubUserContext(): Promise<HubUserContext | null> {
   if (!isSupabaseConfigured()) return null;
 
-  const supabase = await createClient();
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
-  if (!user) return null;
+  const snapshot = await getCurrentUserRoleSnapshot();
+  if (!snapshot) return null;
 
   const service = createServiceClient();
-  const [{ data: profile }, { data: memberships, error: membershipsError }, { data: globalRoles, error: globalRolesError }] = await Promise.all([
-    service.from("profiles").select("is_admin").eq("id", user.id).maybeSingle(),
-    service.from("artist_members").select("id,artist_id,user_id,role,permissions,created_at").eq("user_id", user.id),
-    service.from("user_roles").select("role").eq("user_id", user.id)
-  ]);
-
+  const { data: memberships, error: membershipsError } = await service
+    .from("artist_members")
+    .select("id,artist_id,user_id,role,permissions,created_at")
+    .eq("user_id", snapshot.user.id);
   const safeMemberships = membershipsError ? [] : (memberships ?? []).map(mapMembership);
-  const safeGlobalRoles = globalRolesError ? [] : (globalRoles ?? []).map((row: any) => String(row.role) as HubRole);
-  const isAdmin = user.user_metadata?.role === "admin" || Boolean(profile?.is_admin) || safeGlobalRoles.includes("admin");
+  const safeGlobalRoles = snapshot.globalRoles.map((role) => role as HubRole);
+  const isAdmin = snapshot.isAdmin;
   const isApproved = isAdmin || safeMemberships.length > 0 || safeGlobalRoles.length > 0;
 
   return {
-    user,
+    user: snapshot.user,
     isAdmin,
     isApproved,
     globalRoles: safeGlobalRoles,
@@ -89,27 +83,17 @@ export async function requireHubAdmin(user?: User) {
     throw new Error("Supabase is not configured.");
   }
 
-  const supabase = await createClient();
-  const resolvedUser = user ?? (await supabase.auth.getUser()).data.user;
-  if (!resolvedUser) {
+  const snapshot = await getCurrentUserRoleSnapshot(user);
+  if (!snapshot) {
     throw new Error("Unauthorized");
   }
-
-  const service = createServiceClient();
-  const [{ data: profile }, { data: roleRow }] = await Promise.all([
-    service.from("profiles").select("is_admin").eq("id", resolvedUser.id).maybeSingle(),
-    service.from("user_roles").select("role").eq("user_id", resolvedUser.id).eq("role", "admin").maybeSingle()
-  ]);
-
-  const isAdmin = resolvedUser.user_metadata?.role === "admin" || Boolean(profile?.is_admin) || Boolean(roleRow?.role);
-
-  if (!isAdmin) {
+  if (!snapshot.isAdmin) {
     throw new Error("Forbidden");
   }
 
   return {
-    user: resolvedUser,
-    service
+    user: snapshot.user,
+    service: createServiceClient()
   };
 }
 

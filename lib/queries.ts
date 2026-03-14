@@ -1,7 +1,9 @@
 import { cache } from "react";
 import { createClient as createServerSupabase } from "@/lib/supabase/server";
+import { DEFAULT_SOCIAL_PUBLISHING_SETTINGS } from "@/lib/social-publishing";
 import { createServiceClient } from "@/lib/supabase/service";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { slugifyText } from "@/lib/utils";
 import {
   mockArtists,
   mockDemos,
@@ -31,11 +33,18 @@ import type {
   NextUpSubmission,
   Release,
   SiteAnalyticsSnapshot,
+  SocialPostJob,
+  SocialPublishingSettings,
   SocialLink,
   TicketOrder
 } from "@/lib/types";
 
 function mapArtist(row: any): Artist {
+  const primaryGenre = row.primary_genre ?? row.genre ?? null;
+  const language = row.language ?? "Español";
+  const heroImageUrl = row.hero_image_url ?? row.avatar_url ?? row.hero_media_url ?? null;
+  const isPublished = typeof row.is_published === "boolean" ? row.is_published : row.status !== "draft";
+
   return {
     id: row.id,
     name: row.name,
@@ -45,7 +54,10 @@ function mapArtist(row: any): Artist {
     bioShort: row.bio_short ?? null,
     bioMed: row.bio_med ?? null,
     bioLong: row.bio_long ?? null,
-    heroMediaUrl: row.hero_media_url,
+    genre: primaryGenre,
+    language,
+    heroImageUrl,
+    heroMediaUrl: row.hero_media_url ?? heroImageUrl ?? row.avatar_url ?? "",
     avatarUrl: row.avatar_url,
     bookingEmail: row.booking_email,
     spotifyUrl: row.spotify_url,
@@ -66,18 +78,33 @@ function mapArtist(row: any): Artist {
     pressKitUpdatedAt: row.press_kit_updated_at ?? null,
     mediaKitUpdatedAt: row.media_kit_updated_at ?? null,
     epkEnabled: row.epk_enabled ?? false,
-    createdAt: row.created_at
+    createdAt: row.created_at,
+    updatedAt: row.updated_at ?? row.created_at,
+    publishedAt: row.published_at ?? null,
+    isPublished
   };
 }
 
+function formatToReleaseType(format: string | null | undefined): Release["releaseType"] {
+  const normalized = String(format ?? "").toLowerCase();
+  if (normalized === "single" || normalized === "ep" || normalized === "album") return normalized;
+  return null;
+}
+
 function mapRelease(row: any): Release {
+  const releaseType = formatToReleaseType(row.release_type ?? row.format);
+  const isPublished = typeof row.is_published === "boolean" ? row.is_published : row.content_status !== "draft";
+
   return {
     id: row.id,
+    slug: row.slug ?? null,
     title: row.title,
     format: row.format,
+    releaseType,
     coverUrl: row.cover_url,
     releaseDate: row.release_date,
     description: row.description,
+    preSaveUrl: row.pre_save_url ?? row.presave_url ?? null,
     artistSlug: row.artist_slug ?? null,
     artistName: row.artist_name ?? null,
     featuring: row.featuring ?? null,
@@ -89,7 +116,10 @@ function mapRelease(row: any): Release {
     videoFeatured: Boolean(row.video_featured ?? false),
     featured: row.featured,
     contentStatus: row.content_status ?? "published",
-    publishAt: row.publish_at ?? null
+    publishAt: row.publish_at ?? null,
+    updatedAt: row.updated_at ?? row.created_at,
+    publishedAt: row.published_at ?? row.publish_at ?? null,
+    isPublished
   };
 }
 
@@ -217,6 +247,63 @@ function mapSocialLink(row: any): SocialLink {
   };
 }
 
+function mapSocialPublishingSettings(row: any): SocialPublishingSettings {
+  return {
+    id: String(row?.id ?? "default"),
+    facebookEnabled: typeof row?.facebook_enabled === "boolean" ? row.facebook_enabled : DEFAULT_SOCIAL_PUBLISHING_SETTINGS.facebookEnabled,
+    instagramEnabled: typeof row?.instagram_enabled === "boolean" ? row.instagram_enabled : DEFAULT_SOCIAL_PUBLISHING_SETTINGS.instagramEnabled,
+    autoReleaseFacebook:
+      typeof row?.auto_release_facebook === "boolean" ? row.auto_release_facebook : DEFAULT_SOCIAL_PUBLISHING_SETTINGS.autoReleaseFacebook,
+    autoReleaseInstagram:
+      typeof row?.auto_release_instagram === "boolean" ? row.auto_release_instagram : DEFAULT_SOCIAL_PUBLISHING_SETTINGS.autoReleaseInstagram,
+    autoArtistFacebook:
+      typeof row?.auto_artist_facebook === "boolean" ? row.auto_artist_facebook : DEFAULT_SOCIAL_PUBLISHING_SETTINGS.autoArtistFacebook,
+    autoArtistInstagram:
+      typeof row?.auto_artist_instagram === "boolean" ? row.auto_artist_instagram : DEFAULT_SOCIAL_PUBLISHING_SETTINGS.autoArtistInstagram,
+    autoVideoFacebook:
+      typeof row?.auto_video_facebook === "boolean" ? row.auto_video_facebook : DEFAULT_SOCIAL_PUBLISHING_SETTINGS.autoVideoFacebook,
+    autoVideoInstagram:
+      typeof row?.auto_video_instagram === "boolean" ? row.auto_video_instagram : DEFAULT_SOCIAL_PUBLISHING_SETTINGS.autoVideoInstagram,
+    autoNewsFacebook:
+      typeof row?.auto_news_facebook === "boolean" ? row.auto_news_facebook : DEFAULT_SOCIAL_PUBLISHING_SETTINGS.autoNewsFacebook,
+    autoNewsInstagram:
+      typeof row?.auto_news_instagram === "boolean" ? row.auto_news_instagram : DEFAULT_SOCIAL_PUBLISHING_SETTINGS.autoNewsInstagram,
+    randomBundleSize: Number.isFinite(Number(row?.random_bundle_size))
+      ? Math.min(Math.max(Number(row.random_bundle_size), 1), 6)
+      : DEFAULT_SOCIAL_PUBLISHING_SETTINGS.randomBundleSize,
+    releaseTemplate: String(row?.release_template ?? DEFAULT_SOCIAL_PUBLISHING_SETTINGS.releaseTemplate),
+    artistTemplate: String(row?.artist_template ?? DEFAULT_SOCIAL_PUBLISHING_SETTINGS.artistTemplate),
+    videoTemplate: String(row?.video_template ?? DEFAULT_SOCIAL_PUBLISHING_SETTINGS.videoTemplate),
+    newsTemplate: String(row?.news_template ?? DEFAULT_SOCIAL_PUBLISHING_SETTINGS.newsTemplate),
+    randomTemplate: String(row?.random_template ?? DEFAULT_SOCIAL_PUBLISHING_SETTINGS.randomTemplate),
+    createdAt: row?.created_at ? String(row.created_at) : undefined,
+    updatedAt: row?.updated_at ? String(row.updated_at) : undefined
+  };
+}
+
+function mapSocialPostJob(row: any): SocialPostJob {
+  return {
+    id: String(row.id),
+    platform: String(row.platform) as SocialPostJob["platform"],
+    status: String(row.status) as SocialPostJob["status"],
+    contentType: String(row.content_type) as SocialPostJob["contentType"],
+    triggerType: String(row.trigger_type ?? ""),
+    contentId: row.content_id ? String(row.content_id) : null,
+    title: row.title ? String(row.title) : null,
+    message: String(row.message ?? ""),
+    linkUrls: Array.isArray(row.link_urls) ? row.link_urls.map((item: unknown) => String(item)) : [],
+    primaryLinkUrl: row.primary_link_url ? String(row.primary_link_url) : null,
+    mediaUrl: row.media_url ? String(row.media_url) : null,
+    metadata: typeof row.metadata === "object" && row.metadata ? (row.metadata as Record<string, unknown>) : {},
+    attemptCount: Number(row.attempt_count ?? 0),
+    lastError: row.last_error ? String(row.last_error) : null,
+    externalPostId: row.external_post_id ? String(row.external_post_id) : null,
+    postedAt: row.posted_at ? String(row.posted_at) : null,
+    createdAt: row.created_at ? String(row.created_at) : undefined,
+    updatedAt: row.updated_at ? String(row.updated_at) : undefined
+  };
+}
+
 export const getArtists = cache(async (): Promise<Artist[]> => {
   if (!isSupabaseConfigured()) {
     return mockArtists;
@@ -253,6 +340,25 @@ export const getArtistBySlug = cache(async (slug: string): Promise<Artist | null
   } catch {
     return mockArtists.find((item) => item.slug === slug) ?? null;
   }
+});
+
+function isArtistPublished(item: Artist): boolean {
+  if (item.isPublished === false) return false;
+  if (item.publishedAt) {
+    return new Date(item.publishedAt) <= new Date();
+  }
+  return true;
+}
+
+export const getPublishedArtists = cache(async (): Promise<Artist[]> => {
+  const artists = await getArtists();
+  return artists.filter(isArtistPublished);
+});
+
+export const getPublishedArtistBySlug = cache(async (slug: string): Promise<Artist | null> => {
+  const artist = await getArtistBySlug(slug);
+  if (!artist) return null;
+  return isArtistPublished(artist) ? artist : null;
 });
 
 export const getArtistPhotos = cache(async (artistId: string): Promise<ArtistPhoto[]> => {
@@ -469,6 +575,66 @@ export const getReleases = cache(async (): Promise<Release[]> => {
   return releases.filter((release) => isContentLive(release.contentStatus, release.publishAt, release.releaseDate));
 });
 
+function isReleasePublishedForSeo(release: Release): boolean {
+  if (release.isPublished === false) return false;
+  if (!isContentLive(release.contentStatus, release.publishAt, release.releaseDate)) {
+    return false;
+  }
+  if (release.publishedAt) {
+    return new Date(release.publishedAt) <= new Date();
+  }
+  return true;
+}
+
+function isReleaseVisibleInPublicCatalog(release: Release): boolean {
+  if (release.isPublished === false) return false;
+  if ((release.contentStatus ?? "published") === "draft") return false;
+  return true;
+}
+
+function fallbackReleaseSlug(release: Release): string {
+  const base = slugifyText(release.title, 64);
+  return base ? `${base}-${release.id.slice(0, 8)}` : release.id;
+}
+
+export const getPublishedReleases = cache(async (): Promise<Release[]> => {
+  const releases = await getReleasesAdmin();
+  return releases
+    .filter(isReleasePublishedForSeo)
+    .map((item) => ({
+      ...item,
+      slug: item.slug ?? fallbackReleaseSlug(item)
+    }));
+});
+
+export const getMusicCatalogReleases = cache(async (): Promise<Release[]> => {
+  const releases = await getReleasesAdmin();
+  return releases
+    .filter(isReleaseVisibleInPublicCatalog)
+    .map((item) => ({
+      ...item,
+      slug: item.slug ?? fallbackReleaseSlug(item)
+    }));
+});
+
+export const getPublishedReleaseBySlug = cache(async (slug: string): Promise<Release | null> => {
+  const releases = await getPublishedReleases();
+  return (
+    releases.find((release) => release.slug === slug) ??
+    releases.find((release) => fallbackReleaseSlug(release) === slug) ??
+    null
+  );
+});
+
+export const getMusicCatalogReleaseBySlug = cache(async (slug: string): Promise<Release | null> => {
+  const releases = await getMusicCatalogReleases();
+  return (
+    releases.find((release) => release.slug === slug) ??
+    releases.find((release) => fallbackReleaseSlug(release) === slug) ??
+    null
+  );
+});
+
 export const getFeaturedRelease = cache(async (): Promise<Release | null> => {
   const releases = await getReleases();
   return releases.find((release) => release.featured) ?? releases[0] ?? null;
@@ -574,6 +740,40 @@ export const getSocialLinksAdmin = cache(async (): Promise<SocialLink[]> => {
 export const getSocialLinks = cache(async (): Promise<SocialLink[]> => {
   const links = await getSocialLinksAdmin();
   return links.filter((item) => item.isActive);
+});
+
+export const getSocialPublishingSettings = cache(async (): Promise<SocialPublishingSettings> => {
+  if (!isSupabaseConfigured()) {
+    return DEFAULT_SOCIAL_PUBLISHING_SETTINGS;
+  }
+
+  try {
+    const service = createServiceClient();
+    const { data, error } = await service.from("social_publish_settings").select("*").eq("id", "default").maybeSingle();
+    if (error || !data) {
+      return DEFAULT_SOCIAL_PUBLISHING_SETTINGS;
+    }
+    return mapSocialPublishingSettings(data);
+  } catch {
+    return DEFAULT_SOCIAL_PUBLISHING_SETTINGS;
+  }
+});
+
+export const getSocialPostJobsAdmin = cache(async (): Promise<SocialPostJob[]> => {
+  if (!isSupabaseConfigured()) {
+    return [];
+  }
+
+  try {
+    const service = createServiceClient();
+    const { data, error } = await service.from("social_post_jobs").select("*").order("created_at", { ascending: false }).limit(40);
+    if (error || !data) {
+      return [];
+    }
+    return data.map(mapSocialPostJob);
+  } catch {
+    return [];
+  }
 });
 
 export const getCountdownRelease = cache(async (): Promise<Release | null> => {

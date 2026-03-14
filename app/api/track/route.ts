@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createServiceClient } from "@/lib/supabase/service";
+import { hasTermsConsentCookie, TERMS_CONSENT_COOKIE } from "@/lib/terms";
 
 type IncomingBody = {
   event?: unknown;
@@ -22,6 +23,16 @@ export async function POST(request: Request) {
   }
 
   try {
+    const cookieHeader = request.headers.get("cookie") ?? "";
+    const consentCookie = cookieHeader
+      .split(";")
+      .map((item) => item.trim())
+      .find((item) => item.startsWith(`${TERMS_CONSENT_COOKIE}=`))
+      ?.split("=")[1];
+    if (!hasTermsConsentCookie(consentCookie)) {
+      return NextResponse.json({ ok: true });
+    }
+
     const body = (await request.json().catch(() => null)) as IncomingBody | null;
 
     const eventName = toCleanString(body?.event, 80);

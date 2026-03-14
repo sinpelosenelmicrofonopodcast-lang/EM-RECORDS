@@ -1,22 +1,18 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { InternalLinksBlock } from "@/components/shared/internal-links-block";
 import { SectionTitle } from "@/components/shared/section-title";
 import { getSiteLanguage } from "@/lib/i18n/server";
-import { getArtists } from "@/lib/queries";
-import { buildPageMetadata } from "@/lib/seo";
+import { getPublishedArtists } from "@/lib/queries";
+import { buildCollectionMetadata } from "@/lib/seo";
 import { absoluteUrl, normalizeImageUrl, toJsonLd } from "@/lib/utils";
 
-export const metadata: Metadata = buildPageMetadata({
-  title: "Artistas",
-  description: "Roster oficial de EM Records: artistas urbanos latinos con proyección internacional.",
-  path: "/artists",
-  keywords: ["artistas latinos", "roster em records", "urban latin artists", "sello discográfico"]
-});
+export const metadata: Metadata = buildCollectionMetadata("artists");
 
 export default async function ArtistsPage() {
   const lang = await getSiteLanguage();
-  const artists = await getArtists();
+  const artists = await getPublishedArtists();
   const artistsSchema = {
     "@context": "https://schema.org",
     "@graph": [
@@ -57,6 +53,7 @@ export default async function ArtistsPage() {
   return (
     <div className="mx-auto w-full max-w-7xl px-6 py-20 md:px-10">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLd(artistsSchema) }} />
+      <h1 className="sr-only">{lang === "es" ? "Artistas de EM Records" : "EM Records artists"}</h1>
       <SectionTitle
         eyebrow={lang === "es" ? "Artistas" : "Artists"}
         title={lang === "es" ? "Roster" : "Roster"}
@@ -80,6 +77,27 @@ export default async function ArtistsPage() {
           </Link>
         ))}
       </div>
+
+      <InternalLinksBlock
+        title={lang === "es" ? "Navega el Universo EM" : "Explore the EM Universe"}
+        links={[
+          {
+            href: "/music",
+            label: lang === "es" ? "Música" : "Music",
+            description: lang === "es" ? "Lanzamientos oficiales del sello." : "Official label releases."
+          },
+          {
+            href: "/videos",
+            label: lang === "es" ? "Videos" : "Videos",
+            description: lang === "es" ? "Visualizers y videos oficiales." : "Official visualizers and videos."
+          },
+          {
+            href: "/press",
+            label: lang === "es" ? "Prensa" : "Press",
+            description: lang === "es" ? "Últimas noticias y cobertura editorial." : "Latest news and editorial coverage."
+          }
+        ]}
+      />
     </div>
   );
 }

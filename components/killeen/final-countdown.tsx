@@ -1,24 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import type { SiteLanguage } from "@/lib/i18n";
-
-function getCountdown(target: string) {
-  const diff = Math.max(+new Date(target) - Date.now(), 0);
-  return {
-    days: Math.floor(diff / (1000 * 60 * 60 * 24)),
-    hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
-    minutes: Math.floor((diff / (1000 * 60)) % 60)
-  };
-}
+import { splitCountdownMs } from "@/lib/countdown";
+import { useCountdownDiff } from "@/lib/use-countdown";
 
 export function FinalCountdown({ targetDate, lang = "es" }: { targetDate: string; lang?: SiteLanguage }) {
-  const [time, setTime] = useState(() => getCountdown(targetDate));
-
-  useEffect(() => {
-    const timer = setInterval(() => setTime(getCountdown(targetDate)), 60_000);
-    return () => clearInterval(timer);
-  }, [targetDate]);
+  const diffMs = useCountdownDiff(targetDate);
+  const time = splitCountdownMs(diffMs ?? 0);
 
   return (
     <div className="rounded-3xl border border-red-400/30 bg-gradient-to-r from-red-500/15 via-gold/10 to-transparent p-6">

@@ -32,6 +32,9 @@ function InfoMessage({ type, value, lang }: { type: "demo" | "vote"; value?: str
           ok: type === "demo" ? "Demo enviada correctamente. Revisa tu email de confirmación." : "Voto registrado exitosamente.",
           sent: "Código OTP enviado por email.",
           duplicate_stage: "Ese nombre artístico ya envió una demo.",
+          file_too_large: "El archivo es muy pesado. Máximo 24MB por upload.",
+          upload: "No se pudo subir el archivo. Intenta con link de YouTube/SoundCloud o reduce el tamaño.",
+          db: "No se pudo guardar la demo. Revisa migraciones SQL y vuelve a intentar.",
           closed: "La votación está cerrada temporalmente.",
           invalid: "Completa correctamente todos los campos.",
           no_otp: "Primero solicita el código OTP.",
@@ -46,6 +49,9 @@ function InfoMessage({ type, value, lang }: { type: "demo" | "vote"; value?: str
           ok: type === "demo" ? "Demo submitted successfully. Check your confirmation email." : "Vote registered successfully.",
           sent: "OTP code sent by email.",
           duplicate_stage: "That stage name already submitted a demo.",
+          file_too_large: "File too large. Maximum size is 24MB per upload.",
+          upload: "File upload failed. Try a YouTube/SoundCloud link or a smaller file.",
+          db: "Could not save submission. Check SQL migrations and try again.",
           closed: "Voting is currently closed.",
           invalid: "Complete all fields correctly.",
           no_otp: "Request your OTP code first.",
@@ -256,6 +262,7 @@ export default async function KilleenNextUpPage({ searchParams }: Props) {
                 accept=".mp3,.wav,.m4a,audio/*"
                 className="w-full text-sm text-white/80 file:mr-4 file:rounded-full file:border-0 file:bg-gold file:px-4 file:py-2 file:text-xs file:font-semibold file:uppercase file:tracking-[0.16em] file:text-black"
               />
+              <p className="mt-2 text-[11px] uppercase tracking-[0.12em] text-white/45">{lang === "es" ? "Máximo 24MB" : "Maximum 24MB"}</p>
             </div>
             <input name="socialLinks" placeholder="Redes sociales" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold md:col-span-2" />
             <textarea name="artistBio" rows={4} placeholder="Breve descripción del artista" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold md:col-span-2" />
