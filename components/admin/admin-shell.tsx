@@ -3,7 +3,7 @@ import { SidebarShell } from "@/components/shared/sidebar-shell";
 import { signOutAdminAction } from "@/lib/actions/admin";
 
 const nav = [
-  { href: "/admin", label: "Dashboard" },
+  { href: "/admin", label: "Dashboard", exact: true },
   { href: "/admin/signing", label: "Artist Signing" },
   { href: "/admin/artists", label: "Artists" },
   { href: "/admin/releases", label: "Releases" },

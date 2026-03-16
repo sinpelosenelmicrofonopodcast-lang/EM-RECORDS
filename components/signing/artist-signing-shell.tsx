@@ -1,8 +1,9 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
+import { ActiveNavLink } from "@/components/shared/active-nav-link";
+import { PageIntro } from "@/components/shared/page-intro";
 
 const nav = [
-  { href: "/dashboard/signing", label: "Dashboard" },
+  { href: "/dashboard/signing", label: "Dashboard", exact: true },
   { href: "/dashboard/signing/agreement", label: "My Agreement" },
   { href: "/dashboard/signing/documents", label: "Documents" },
   { href: "/dashboard/signing/profile", label: "Profile" },
@@ -22,30 +23,30 @@ export function ArtistSigningShell({
   rightSlot?: ReactNode;
 }) {
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6 px-5 py-8 md:px-8">
-      <header className="premium-surface rounded-2xl p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.22em] text-gold">EM Records Artist Portal</p>
-            <h1 className="mt-3 font-display text-4xl text-white">{title}</h1>
-            {subtitle ? <p className="mt-2 max-w-2xl text-sm text-white/70">{subtitle}</p> : null}
-          </div>
-          {rightSlot}
-        </div>
-        <nav className="mt-5 flex flex-wrap gap-2">
-          {nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="rounded-full border border-white/15 bg-white/[0.02] px-3 py-1.5 text-[11px] uppercase tracking-[0.16em] text-white/75 transition hover:border-gold hover:text-gold"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-      </header>
+    <div className="app-shell space-y-6">
+      <PageIntro
+        eyebrow="EM Records Artist Portal"
+        title={title}
+        description={subtitle}
+        actions={rightSlot}
+        nav={
+          <nav className="nav-chip-row">
+            {nav.map((item) => (
+              <ActiveNavLink
+                key={item.href}
+                href={item.href}
+                exact={item.exact}
+                className="rounded-full px-3 py-1.5 text-[11px] uppercase tracking-[0.16em] transition"
+                activeClassName="border border-gold/40 bg-gold/14 text-gold"
+                inactiveClassName="border border-white/15 bg-white/[0.02] text-white/75 hover:border-gold hover:text-gold"
+              >
+                {item.label}
+              </ActiveNavLink>
+            ))}
+          </nav>
+        }
+      />
       {children}
     </div>
   );
 }
-

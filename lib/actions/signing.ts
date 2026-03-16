@@ -15,7 +15,7 @@ import {
 } from "@/lib/signing/email-templates";
 import { sendTransactionalEmail } from "@/lib/signing/email";
 import { buildContractPdf } from "@/lib/signing/pdf";
-import { ONBOARDING_TASK_BLUEPRINT, EM_RECORDS_DEFAULT_LEGAL_ENTITY } from "@/lib/signing/constants";
+import { EM_RECORDS_DEFAULT_LEGAL_ENTITY } from "@/lib/signing/constants";
 import {
   OFFICIAL_RECORDING_AGREEMENT_BODY_MARKDOWN,
   OFFICIAL_RECORDING_AGREEMENT_CLAUSE_SCHEMA,
@@ -26,6 +26,7 @@ import {
   resolveOfficialRecordingAgreementMarkdown,
   resolveOfficialRecordingAgreementTitle
 } from "@/lib/signing/recording-agreement";
+import { buildArtistIntakeDbPayload, formatArtistPostalAddress, getMissingCriticalArtistFields, parseArtistIntakeFormData, upsertArtistIntakeLead } from "@/lib/signing/intake";
 import { getContractBundle, getSigningViewerContext } from "@/lib/signing/service";
 import { formatContractMarkdown, markdownToContractHtml, mergeTemplateVariables, renderContractTemplate } from "@/lib/signing/template-engine";
 import { generateInviteToken, hashInviteToken } from "@/lib/signing/token";
@@ -66,6 +67,10 @@ function asNullableNumber(formData: FormData, field: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function withDefinedValues<T extends Record<string, unknown>>(input: T): Partial<T> {
+  return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)) as Partial<T>;
+}
+
 function resolveEffectiveDateValue(raw: string): Date {
   const fallback = new Date();
   if (!raw) return fallback;
@@ -89,21 +94,6 @@ function parseIpAddress(value: string | null): string | null {
   const first = value.split(",")[0]?.trim() ?? "";
   if (!first) return null;
   return first.replace(/[^a-fA-F0-9:.\-]/g, "");
-}
-
-function parseSocialLinks(formData: FormData): Record<string, string> {
-  const entries = [
-    ["instagram", asString(formData, "social_instagram")],
-    ["tiktok", asString(formData, "social_tiktok")],
-    ["youtube", asString(formData, "social_youtube")],
-    ["spotify", asString(formData, "social_spotify")],
-    ["x", asString(formData, "social_x")]
-  ] as const;
-
-  return entries.reduce<Record<string, string>>((acc, [key, value]) => {
-    if (value) acc[key] = value;
-    return acc;
-  }, {});
 }
 
 function parseArtistCatalogSocialLinks(artist: {
@@ -130,18 +120,6 @@ function parseArtistCatalogSocialLinks(artist: {
   }, {});
 }
 
-function mergeStringNotes(existing: string | null | undefined, incoming: string | null | undefined): string | null {
-  const current = String(existing ?? "").trim();
-  const next = String(incoming ?? "").trim();
-  if (!current) return next || null;
-  if (!next || current.includes(next)) return current;
-  return `${current}\n${next}`;
-}
-
-function withDefinedValues<T extends Record<string, unknown>>(input: T): Partial<T> {
-  return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)) as Partial<T>;
-}
-
 async function requireViewer() {
   const ctx = await getSigningViewerContext();
   if (!ctx) redirect("/artist/login");
@@ -152,22 +130,6 @@ async function requireStaff() {
   const ctx = await requireViewer();
   if (!ctx.isStaff) redirect("/");
   return ctx;
-}
-
-async function findAuthUserByEmail(service: ReturnType<typeof createServiceClient>, email: string) {
-  let page = 1;
-  const perPage = 200;
-
-  while (page <= 20) {
-    const { data, error } = await service.auth.admin.listUsers({ page, perPage });
-    if (error) return null;
-    const found = (data?.users ?? []).find((user) => String(user.email ?? "").toLowerCase() === email);
-    if (found) return found;
-    if ((data?.users ?? []).length < perPage) break;
-    page += 1;
-  }
-
-  return null;
 }
 
 function resolveContractClauses(formData: FormData, defaults: Record<string, unknown>, offerDefaults?: { includes360?: boolean; includesPublishing?: boolean }): ContractClauseFlags {
@@ -186,11 +148,37 @@ function resolveContractClauses(formData: FormData, defaults: Record<string, unk
 function buildContractVariableOverrides(formData: FormData, lead: any, offer: any): Record<string, unknown> {
   const effectiveDateValue = asString(formData, "effective_date") || new Date().toISOString().slice(0, 10);
   const agreementDateParts = formatAgreementDateParts(effectiveDateValue);
+  const artistFullAddress = formatArtistPostalAddress({
+    addressLine1: lead.address_line_1,
+    addressLine2: lead.address_line_2,
+    residenceCity: lead.residence_city,
+    residenceStateRegion: lead.residence_state_region,
+    postalCode: lead.postal_code,
+    residenceCountry: lead.residence_country
+  });
 
   return {
     contract_language: asString(formData, "contract_language") || undefined,
     artist_legal_name: lead.legal_name,
     artist_stage_name: lead.stage_name || lead.legal_name,
+    artist_personal_email: lead.email || "",
+    artist_professional_email: lead.professional_email || "",
+    artist_phone: lead.phone || "",
+    artist_date_of_birth: lead.date_of_birth || "",
+    artist_nationality: lead.nationality || "",
+    artist_residence_city: lead.residence_city || "",
+    artist_residence_country: lead.residence_country || lead.country || "",
+    artist_residence_state_region: lead.residence_state_region || lead.state || "",
+    artist_postal_code: lead.postal_code || "",
+    artist_address_line_1: lead.address_line_1 || "",
+    artist_address_line_2: lead.address_line_2 || "",
+    artist_full_address: artistFullAddress,
+    artist_government_id: lead.government_id || "",
+    artist_primary_genre: lead.primary_genre || "",
+    artist_representing_country: lead.representing_country || "",
+    artist_manager_name: lead.manager_name || "",
+    artist_manager_email: lead.manager_email || "",
+    artist_manager_phone: lead.manager_phone || "",
     effective_date: effectiveDateValue,
     agreement_day: asString(formData, "agreement_day") || agreementDateParts.day,
     agreement_month: asString(formData, "agreement_month") || agreementDateParts.month,
@@ -501,197 +489,21 @@ async function resolveInviteToken(service: ReturnType<typeof createServiceClient
   return { error: null, invite };
 }
 
-async function upsertSigningLead(params: {
-  service: ReturnType<typeof createServiceClient>;
-  actorUserId: string;
-  legalName: string;
-  stageName?: string | null;
-  email: string;
-  phone?: string | null;
-  country?: string | null;
-  state?: string | null;
-  dateOfBirth?: string | null;
-  governmentName?: string | null;
-  proAffiliation?: string | null;
-  ipiNumber?: string | null;
-  socialLinks?: Record<string, string>;
-  notes?: string | null;
-  assignedTo?: string | null;
-}): Promise<{ leadId: string; created: boolean }> {
-  const normalizedEmail = params.email.trim().toLowerCase();
-  const normalizedStageName = params.stageName?.trim() || null;
-  const normalizedSocials = params.socialLinks ?? {};
-
-  const existingProfileRes = await params.service.from("artist_profiles").select("*").eq("email", normalizedEmail).maybeSingle();
-  let artistProfileId = existingProfileRes.data?.id ? String(existingProfileRes.data.id) : null;
-
-  const profileRow = await params.service.from("profiles").select("id").eq("email", normalizedEmail).maybeSingle();
-  const authUser = await findAuthUserByEmail(params.service, normalizedEmail);
-
-  if (!artistProfileId) {
-    const { data: profileInsert, error: profileInsertError } = await params.service
-      .from("artist_profiles")
-      .insert({
-        user_id: authUser?.id ?? null,
-        profile_id: profileRow.data?.id ?? null,
-        legal_name: params.legalName,
-        stage_name: normalizedStageName,
-        email: normalizedEmail,
-        phone: params.phone ?? null,
-        country: params.country ?? null,
-        state: params.state ?? null,
-        date_of_birth: params.dateOfBirth ?? null,
-        government_name: params.governmentName ?? null,
-        pro_affiliation: params.proAffiliation || "none",
-        ipi_number: params.ipiNumber ?? null,
-        social_links: normalizedSocials,
-        notes: params.notes ?? null
-      })
-      .select("id")
-      .single();
-
-    if (profileInsertError || !profileInsert) {
-      throw new Error(profileInsertError?.message ?? "Failed to create artist profile.");
-    }
-
-    artistProfileId = String(profileInsert.id);
-  } else {
-    const profilePayload = withDefinedValues({
-      user_id: authUser?.id ?? existingProfileRes.data?.user_id ?? null,
-      profile_id: profileRow.data?.id ?? existingProfileRes.data?.profile_id ?? null,
-      legal_name: params.legalName,
-      stage_name: normalizedStageName,
-      phone: params.phone,
-      country: params.country,
-      state: params.state,
-      date_of_birth: params.dateOfBirth,
-      government_name: params.governmentName,
-      pro_affiliation: params.proAffiliation || undefined,
-      ipi_number: params.ipiNumber,
-      social_links: { ...(existingProfileRes.data?.social_links ?? {}), ...normalizedSocials },
-      notes: mergeStringNotes(existingProfileRes.data?.notes, params.notes)
-    });
-
-    const { error: profileUpdateError } = await params.service.from("artist_profiles").update(profilePayload).eq("id", artistProfileId);
-    if (profileUpdateError) {
-      throw new Error(profileUpdateError.message);
-    }
-  }
-
-  const { data: leadRows, error: leadLookupError } = await params.service
-    .from("artist_leads")
-    .select("*")
-    .or(`artist_profile_id.eq.${artistProfileId},email.eq.${normalizedEmail}`)
-    .order("created_at", { ascending: false })
-    .limit(10);
-
-  if (leadLookupError) {
-    throw new Error(leadLookupError.message);
-  }
-
-  const existingOpenLead = (leadRows ?? []).find((row: any) => !["archived", "declined", "expired"].includes(String(row.status)));
-
-  if (existingOpenLead) {
-    const updatePayload = withDefinedValues({
-      artist_profile_id: artistProfileId,
-      legal_name: params.legalName,
-      stage_name: normalizedStageName,
-      email: normalizedEmail,
-      phone: params.phone,
-      country: params.country,
-      state: params.state,
-      date_of_birth: params.dateOfBirth,
-      government_name: params.governmentName,
-      pro_affiliation: params.proAffiliation || undefined,
-      ipi_number: params.ipiNumber,
-      social_links: { ...(existingOpenLead.social_links ?? {}), ...normalizedSocials },
-      notes: mergeStringNotes(existingOpenLead.notes, params.notes),
-      assigned_to: params.assignedTo ?? existingOpenLead.assigned_to ?? params.actorUserId
-    });
-
-    const { error: leadUpdateError } = await params.service.from("artist_leads").update(updatePayload).eq("id", existingOpenLead.id);
-    if (leadUpdateError) {
-      throw new Error(leadUpdateError.message);
-    }
-
-    await params.service.from("onboarding_tasks").upsert(
-      ONBOARDING_TASK_BLUEPRINT.map((task) => ({
-        artist_lead_id: existingOpenLead.id,
-        task_key: task.key,
-        title: task.title
-      })),
-      { onConflict: "artist_lead_id,task_key" }
-    );
-
-    return { leadId: String(existingOpenLead.id), created: false };
-  }
-
-  const { data: lead, error: leadError } = await params.service
-    .from("artist_leads")
-    .insert({
-      artist_profile_id: artistProfileId,
-      legal_name: params.legalName,
-      stage_name: normalizedStageName,
-      email: normalizedEmail,
-      phone: params.phone ?? null,
-      country: params.country ?? null,
-      state: params.state ?? null,
-      date_of_birth: params.dateOfBirth ?? null,
-      government_name: params.governmentName ?? null,
-      pro_affiliation: params.proAffiliation || "none",
-      ipi_number: params.ipiNumber ?? null,
-      social_links: normalizedSocials,
-      notes: params.notes ?? null,
-      status: "lead_received",
-      assigned_to: params.assignedTo ?? params.actorUserId,
-      created_by: params.actorUserId
-    })
-    .select("id")
-    .single();
-
-  if (leadError || !lead) {
-    throw new Error(leadError?.message ?? "Failed to create artist lead.");
-  }
-
-  await params.service.from("onboarding_tasks").upsert(
-    ONBOARDING_TASK_BLUEPRINT.map((task) => ({
-      artist_lead_id: lead.id,
-      task_key: task.key,
-      title: task.title
-    })),
-    { onConflict: "artist_lead_id,task_key" }
-  );
-
-  return { leadId: String(lead.id), created: true };
-}
-
 export async function createArtistLeadAction(formData: FormData) {
   const viewer = await requireStaff();
   const service = createServiceClient();
   const redirectTo = getRedirectTo(formData, "/admin/signing/artists");
 
-  const legalName = asString(formData, "legal_name");
-  const stageName = asString(formData, "stage_name");
-  const email = asString(formData, "email").toLowerCase();
-  if (!legalName || !email) {
-    flashRedirect(redirectTo, "error", "Legal name and email are required.");
+  const parsed = parseArtistIntakeFormData(formData);
+  if (!parsed.success) {
+    flashRedirect(redirectTo, "error", parsed.error.issues[0]?.message ?? "Complete the required artist intake fields.");
   }
 
-  const result = await upsertSigningLead({
+  const intake = parsed.data;
+  const result = await upsertArtistIntakeLead({
     service,
     actorUserId: viewer.userId,
-    legalName,
-    stageName,
-    email,
-    phone: asString(formData, "phone") || null,
-    country: asString(formData, "country") || null,
-    state: asString(formData, "state") || null,
-    dateOfBirth: asString(formData, "date_of_birth") || null,
-    governmentName: asString(formData, "government_name") || null,
-    proAffiliation: asString(formData, "pro_affiliation") || "none",
-    ipiNumber: asString(formData, "ipi_number") || null,
-    socialLinks: parseSocialLinks(formData),
-    notes: asString(formData, "notes") || null,
+    ...intake,
     assignedTo: asString(formData, "assigned_to") || viewer.userId
   }).catch((error: Error) => flashRedirect(redirectTo, "error", error.message));
 
@@ -701,7 +513,7 @@ export async function createArtistLeadAction(formData: FormData) {
     entityType: "artist_lead",
     entityId: result.leadId,
     action: result.created ? "lead_created" : "lead_updated",
-    metadata: { email, stageName: stageName || null }
+    metadata: { email: intake.email, stageName: intake.stageName || null, completeness: "contract_ready" }
   });
 
   revalidatePath("/admin/signing");
@@ -717,7 +529,7 @@ export async function createArtistLeadFromExistingArtistAction(formData: FormDat
 
   const { data: artist, error } = await service
     .from("artists")
-    .select("id,name,slug,booking_email,instagram_url,tiktok_url,youtube_url,spotify_url,x_url,facebook_url")
+    .select("id,name,stage_name,slug,booking_email,primary_genre,territory,contacts,instagram_url,tiktok_url,youtube_url,spotify_url,x_url,facebook_url")
     .eq("id", artistId)
     .maybeSingle();
 
@@ -730,12 +542,31 @@ export async function createArtistLeadFromExistingArtistAction(formData: FormDat
     flashRedirect(redirectTo, "error", "This artist does not have a primary email.");
   }
 
-  const result = await upsertSigningLead({
+  const contacts = (artist.contacts ?? {}) as Record<string, unknown>;
+  const result = await upsertArtistIntakeLead({
     service,
     actorUserId: viewer.userId,
     legalName: String(artist.name),
-    stageName: String(artist.name),
+    stageName: String(artist.stage_name ?? artist.name),
     email,
+    professionalEmail: null,
+    phone: String(contacts.phone ?? ""),
+    dateOfBirth: "",
+    nationality: "",
+    residenceCity: "",
+    residenceCountry: "",
+    residenceStateRegion: "",
+    addressLine1: "",
+    addressLine2: "",
+    postalCode: "",
+    governmentId: "",
+    primaryGenre: String(artist.primary_genre ?? ""),
+    representingCountry: String(artist.territory ?? ""),
+    managerName: String(contacts.managerName ?? ""),
+    managerEmail: String(contacts.managerEmail ?? ""),
+    managerPhone: "",
+    proAffiliation: "none",
+    ipiNumber: "",
     socialLinks: parseArtistCatalogSocialLinks(artist),
     notes: `Imported from existing artist catalog: ${artist.slug}`,
     assignedTo: viewer.userId
@@ -1663,6 +1494,25 @@ export async function artistPortalSignContractAction(formData: FormData) {
   flashRedirect(redirectTo, "success", "Agreement signed. Waiting for EM Records countersignature.");
 }
 
+async function updateLeadAndLinkedProfile(service: ReturnType<typeof createServiceClient>, leadId: string, payload: Record<string, unknown>) {
+  const { data: leadRow, error: leadLookupError } = await service.from("artist_leads").select("artist_profile_id").eq("id", leadId).maybeSingle();
+  if (leadLookupError || !leadRow) {
+    throw new Error(leadLookupError?.message ?? "Lead not found.");
+  }
+
+  const leadRes = await service.from("artist_leads").update(payload).eq("id", leadId);
+  if (leadRes.error) {
+    throw new Error(leadRes.error.message);
+  }
+
+  if (leadRow.artist_profile_id) {
+    const profileRes = await service.from("artist_profiles").update(payload).eq("id", String(leadRow.artist_profile_id));
+    if (profileRes.error) {
+      throw new Error(profileRes.error.message);
+    }
+  }
+}
+
 export async function updateArtistProfileFromPortalAction(formData: FormData) {
   const viewer = await requireViewer();
   const service = createServiceClient();
@@ -1673,29 +1523,90 @@ export async function updateArtistProfileFromPortalAction(formData: FormData) {
     flashRedirect(redirectTo, "error", "Unauthorized lead access.");
   }
 
-  const payload = {
-    phone: asString(formData, "phone") || null,
-    country: asString(formData, "country") || null,
-    state: asString(formData, "state") || null,
-    notes: asString(formData, "notes") || null,
-    social_links: parseSocialLinks(formData)
-  };
-
-  const leadRes = await service.from("artist_leads").update(payload).eq("id", leadId);
-  if (leadRes.error) {
-    flashRedirect(redirectTo, "error", leadRes.error.message);
+  const parsed = parseArtistIntakeFormData(formData, { emailField: "email" });
+  if (!parsed.success) {
+    flashRedirect(redirectTo, "error", parsed.error.issues[0]?.message ?? "Complete the required artist profile fields.");
   }
+
+  const intake = parsed.data;
+  const payload = buildArtistIntakeDbPayload(intake);
+
+  await updateLeadAndLinkedProfile(service, leadId, payload).catch((error: Error) => flashRedirect(redirectTo, "error", error.message));
 
   await appendSigningAuditLog(service, {
     actorUserId: viewer.userId,
     artistLeadId: leadId,
     entityType: "artist_lead",
     entityId: leadId,
-    action: "artist_profile_updated"
+    action: "artist_profile_updated",
+    metadata: {
+      missingCriticalFields: getMissingCriticalArtistFields({
+        legalName: intake.legalName,
+        stageName: intake.stageName,
+        email: intake.email,
+        phone: intake.phone,
+        dateOfBirth: intake.dateOfBirth,
+        nationality: intake.nationality,
+        residenceCity: intake.residenceCity,
+        residenceCountry: intake.residenceCountry,
+        addressLine1: intake.addressLine1,
+        primaryGenre: intake.primaryGenre,
+        representingCountry: intake.representingCountry,
+        socialLinks: intake.socialLinks
+      })
+    }
   });
 
   revalidatePath("/dashboard/signing/profile");
+  revalidatePath("/admin/signing");
+  revalidatePath("/admin/signing/artists");
   flashRedirect(redirectTo, "success", "Profile updated.");
+}
+
+export async function updateArtistLeadProfileByStaffAction(formData: FormData) {
+  const viewer = await requireStaff();
+  const service = createServiceClient();
+  const redirectTo = getRedirectTo(formData, "/admin/signing/artists");
+  const leadId = asString(formData, "lead_id");
+
+  const parsed = parseArtistIntakeFormData(formData);
+  if (!parsed.success) {
+    flashRedirect(redirectTo, "error", parsed.error.issues[0]?.message ?? "Complete the required artist intake fields.");
+  }
+
+  const intake = parsed.data;
+  const payload = buildArtistIntakeDbPayload(intake);
+
+  await updateLeadAndLinkedProfile(service, leadId, payload).catch((error: Error) => flashRedirect(redirectTo, "error", error.message));
+
+  await appendSigningAuditLog(service, {
+    actorUserId: viewer.userId,
+    artistLeadId: leadId,
+    entityType: "artist_lead",
+    entityId: leadId,
+    action: "artist_profile_updated_by_staff",
+    metadata: {
+      missingCriticalFields: getMissingCriticalArtistFields({
+        legalName: intake.legalName,
+        stageName: intake.stageName,
+        email: intake.email,
+        phone: intake.phone,
+        dateOfBirth: intake.dateOfBirth,
+        nationality: intake.nationality,
+        residenceCity: intake.residenceCity,
+        residenceCountry: intake.residenceCountry,
+        addressLine1: intake.addressLine1,
+        primaryGenre: intake.primaryGenre,
+        representingCountry: intake.representingCountry,
+        socialLinks: intake.socialLinks
+      })
+    }
+  });
+
+  revalidatePath("/admin/signing");
+  revalidatePath("/admin/signing/artists");
+  revalidatePath("/dashboard/signing/profile");
+  flashRedirect(redirectTo, "success", "Artist intake updated.");
 }
 
 export async function toggleOnboardingTaskAction(formData: FormData) {

@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { parseArtistIntakeFormData, upsertArtistIntakeLead } from "@/lib/signing/intake";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 function toMessage(value: unknown, fallback: string) {
@@ -15,14 +16,17 @@ export async function signUpArtistAction(formData: FormData) {
     redirect("/artist/signup?error=Supabase%20no%20esta%20configurado");
   }
 
-  const email = String(formData.get("email") ?? "")
-    .trim()
-    .toLowerCase();
-  const password = String(formData.get("password") ?? "");
-  const fullName = String(formData.get("fullName") ?? "").trim();
+  const parsed = parseArtistIntakeFormData(formData, { emailField: "email" });
+  if (!parsed.success) {
+    redirect(`/artist/signup?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "Completa los campos obligatorios.")}`);
+  }
 
-  if (!email || !password || !fullName) {
-    redirect("/artist/signup?error=Completa%20todos%20los%20campos");
+  const intake = parsed.data;
+  const email = intake.email;
+  const password = String(formData.get("password") ?? "");
+
+  if (!password || password.length < 8) {
+    redirect("/artist/signup?error=La%20contrasena%20debe%20tener%20al%20menos%208%20caracteres");
   }
 
   const supabase = await createClient();
@@ -31,7 +35,8 @@ export async function signUpArtistAction(formData: FormData) {
     password,
     options: {
       data: {
-        full_name: fullName,
+        full_name: intake.legalName,
+        stage_name: intake.stageName,
         role: "artist"
       }
     }
@@ -49,13 +54,25 @@ export async function signUpArtistAction(formData: FormData) {
         {
           id: userId,
           email,
-          full_name: fullName,
+          full_name: intake.legalName,
           is_admin: false
         },
         { onConflict: "id" }
       );
-    } catch {
-      // Best-effort profile hydration.
+
+      await upsertArtistIntakeLead({
+        service,
+        actorUserId: userId,
+        authUserId: userId,
+        ...intake,
+        assignedTo: userId
+      });
+    } catch (profileError: any) {
+      redirect(
+        `/artist/signup?error=${encodeURIComponent(
+          toMessage(profileError?.message, "La cuenta fue creada, pero no se pudo guardar el perfil legal del artista.")
+        )}`
+      );
     }
   }
 

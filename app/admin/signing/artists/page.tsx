@@ -1,7 +1,10 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { AdminSigningShell } from "@/components/signing/admin-signing-shell";
+import { ArtistIntakeFields } from "@/components/signing/artist-intake-fields";
 import { StatusBadge } from "@/components/signing/status-badge";
-import { createArtistLeadAction, createArtistLeadFromExistingArtistAction, sendOnboardingReminderAction, sendSigningInviteAction, updateArtistLeadStageAction } from "@/lib/actions/signing";
+import { createArtistLeadAction, createArtistLeadFromExistingArtistAction, sendOnboardingReminderAction, sendSigningInviteAction, updateArtistLeadProfileByStaffAction, updateArtistLeadStageAction } from "@/lib/actions/signing";
+import { getMissingCriticalArtistFields, socialLinksToFieldValues } from "@/lib/signing/intake";
 import { SIGNING_PIPELINE_STAGES } from "@/lib/signing/constants";
 import { listArtistLeads, listContracts, listDealOffers } from "@/lib/signing/service";
 import { getArtists } from "@/lib/queries";
@@ -25,7 +28,7 @@ export default async function AdminSigningArtistsPage({ searchParams }: Props) {
   const [leads, deals, contracts, artists] = await Promise.all([listArtistLeads(400), listDealOffers(400), listContracts(400), getArtists()]);
   const filtered = q
     ? leads.filter((lead) => {
-        const haystack = `${lead.legalName} ${lead.stageName ?? ""} ${lead.email} ${lead.country ?? ""} ${lead.state ?? ""}`.toLowerCase();
+        const haystack = `${lead.legalName} ${lead.stageName ?? ""} ${lead.email} ${lead.phone ?? ""} ${lead.residenceCity ?? ""} ${lead.residenceCountry ?? ""} ${lead.primaryGenre ?? ""}`.toLowerCase();
         return haystack.includes(q);
       })
     : leads;
@@ -46,11 +49,13 @@ export default async function AdminSigningArtistsPage({ searchParams }: Props) {
         </div>
       ) : null}
 
-      <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+      <section className="app-panel rounded-[28px] p-5 md:p-6">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-white">Existing Artists</h2>
-            <p className="mt-1 text-sm text-white/65">Use artists already registered on the site and add them to the signing flow in one click.</p>
+            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-white/65">
+              Use artists already registered on the site and move them into the signing pipeline without duplicating records.
+            </p>
           </div>
           <Link href="/admin/artists" className="text-xs uppercase tracking-[0.16em] text-gold hover:underline">
             Open full artist admin
@@ -138,7 +143,7 @@ export default async function AdminSigningArtistsPage({ searchParams }: Props) {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+      <section className="app-panel rounded-[28px] p-5 md:p-6">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-white">Create Lead</h2>
           <Link href="/admin/signing/deals" className="text-xs uppercase tracking-[0.16em] text-gold hover:underline">
@@ -146,41 +151,35 @@ export default async function AdminSigningArtistsPage({ searchParams }: Props) {
           </Link>
         </div>
         <p className="mt-1 text-sm text-white/65">Use this only when the artist is not already registered in the main Artists admin.</p>
-        <form action={createArtistLeadAction} className="mt-4 grid gap-3 md:grid-cols-3">
+        <form action={createArtistLeadAction} className="mt-4 space-y-6">
           <input type="hidden" name="redirectTo" value="/admin/signing/artists" />
-          <input name="legal_name" required placeholder="Legal name" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white" />
-          <input name="stage_name" placeholder="Stage name" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white" />
-          <input name="email" type="email" required placeholder="Email" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white" />
-          <input name="phone" placeholder="Phone" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white" />
-          <input name="country" placeholder="Country" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white" />
-          <input name="state" placeholder="State" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white" />
-          <input name="date_of_birth" type="date" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white" />
-          <select name="pro_affiliation" defaultValue="none" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white">
-            <option value="none">PRO affiliation</option>
-            <option value="BMI">BMI</option>
-            <option value="ASCAP">ASCAP</option>
-            <option value="SESAC">SESAC</option>
-          </select>
-          <input name="ipi_number" placeholder="IPI Number" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white" />
-          <textarea name="notes" rows={2} placeholder="Notes" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white md:col-span-3" />
-          <button type="submit" className="rounded-full border border-gold bg-gold px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-black md:col-span-3 md:justify-self-start">
+          <ArtistIntakeFields values={{ proAffiliation: "none" }} emailLabel="Correo personal" compact />
+          <button type="submit" className="rounded-full border border-gold bg-gold px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-black md:justify-self-start">
             Save Lead
           </button>
         </form>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-        <form action="/admin/signing/artists" className="mb-4 flex flex-wrap gap-2">
-          <input
-            name="q"
-            defaultValue={q}
-            placeholder="Search legal name, stage name, email..."
-            className="min-w-[280px] flex-1 rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white"
-          />
-          <button type="submit" className="rounded-full border border-white/20 px-4 py-2 text-xs uppercase tracking-[0.16em] text-white/70">
-            Search
-          </button>
-        </form>
+      <section className="app-panel rounded-[28px] p-5 md:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold text-white">Signing Artists</h2>
+            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-white/60">
+              Review completeness, move pipeline stages and update legal intake data without leaving this workspace.
+            </p>
+          </div>
+          <form action="/admin/signing/artists" className="flex min-w-[280px] flex-1 flex-wrap gap-2 md:max-w-xl md:justify-end">
+            <input
+              name="q"
+              defaultValue={q}
+              placeholder="Search legal name, stage name, email..."
+              className="min-w-[240px] flex-1 rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white"
+            />
+            <button type="submit" className="rounded-full border border-white/20 px-4 py-2 text-xs uppercase tracking-[0.16em] text-white/70">
+              Search
+            </button>
+          </form>
+        </div>
 
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm text-white/80">
@@ -199,79 +198,140 @@ export default async function AdminSigningArtistsPage({ searchParams }: Props) {
               {filtered.map((lead) => {
                 const latestDeal = deals.find((item) => item.artistLeadId === lead.id);
                 const latestContract = contracts.find((item) => item.artistLeadId === lead.id);
+                const missingCritical = getMissingCriticalArtistFields({
+                  legalName: lead.legalName,
+                  stageName: lead.stageName,
+                  email: lead.email,
+                  phone: lead.phone,
+                  dateOfBirth: lead.dateOfBirth,
+                  nationality: lead.nationality,
+                  residenceCity: lead.residenceCity,
+                  residenceCountry: lead.residenceCountry,
+                  addressLine1: lead.addressLine1,
+                  primaryGenre: lead.primaryGenre,
+                  representingCountry: lead.representingCountry,
+                  socialLinks: lead.socialLinks
+                });
 
                 return (
-                  <tr key={lead.id} className="border-b border-white/5 align-top">
-                    <td className="px-3 py-3">
-                      <p className="font-semibold text-white">{lead.stageName || lead.legalName}</p>
-                      <p className="text-xs text-white/55">{lead.legalName}</p>
-                      <p className="text-xs text-white/45">
-                        {lead.country || "N/A"} {lead.state ? `· ${lead.state}` : ""}
-                      </p>
-                    </td>
-                    <td className="px-3 py-3">{lead.email}</td>
-                    <td className="px-3 py-3">
-                      <p className="text-xs text-white/70">PRO: {lead.proAffiliation}</p>
-                      <p className="text-xs text-white/60">IPI: {lead.ipiNumber || "N/A"}</p>
-                    </td>
-                    <td className="px-3 py-3">
-                      <StatusBadge status={lead.status} />
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="flex min-w-[180px] flex-wrap gap-2">
-                        <Link href="/admin/signing/deals" className="rounded-md border border-white/20 px-2 py-1.5 text-[10px] uppercase tracking-[0.14em] text-white/70">
-                          {latestDeal ? "Open Deal" : "Create Deal"}
-                        </Link>
-                        {latestContract ? (
-                          <Link href={`/admin/signing/contracts/${latestContract.id}`} className="rounded-md border border-gold px-2 py-1.5 text-[10px] uppercase tracking-[0.14em] text-gold">
-                            Contract
+                  <Fragment key={lead.id}>
+                    <tr className="border-b border-white/5 align-top">
+                      <td className="px-3 py-3">
+                        <p className="font-semibold text-white">{lead.stageName || lead.legalName}</p>
+                        <p className="text-xs text-white/55">{lead.legalName}</p>
+                        <p className="text-xs text-white/45">
+                          {lead.residenceCity || "N/A"} {lead.residenceCountry ? `· ${lead.residenceCountry}` : ""}
+                        </p>
+                      </td>
+                      <td className="px-3 py-3">{lead.email}</td>
+                      <td className="px-3 py-3">
+                        <p className="text-xs text-white/70">Genre: {lead.primaryGenre || "N/A"}</p>
+                        <p className="text-xs text-white/60">PRO: {lead.proAffiliation}</p>
+                        <p className="text-xs text-white/60">Completeness: {missingCritical.length === 0 ? "contract-ready" : `${missingCritical.length} missing`}</p>
+                        {missingCritical.length > 0 ? <p className="mt-1 text-xs text-amber-200/80">{missingCritical.slice(0, 2).join(", ")}{missingCritical.length > 2 ? "..." : ""}</p> : null}
+                      </td>
+                      <td className="px-3 py-3">
+                        <StatusBadge status={lead.status} />
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex min-w-[180px] flex-wrap gap-2">
+                          <Link href="/admin/signing/deals" className="rounded-md border border-white/20 px-2 py-1.5 text-[10px] uppercase tracking-[0.14em] text-white/70">
+                            {latestDeal ? "Open Deal" : "Create Deal"}
                           </Link>
-                        ) : null}
-                        {latestContract ? (
-                          <a
-                            href={`/api/signing/contracts/${latestContract.id}/pdf`}
-                            className="rounded-md border border-white/20 px-2 py-1.5 text-[10px] uppercase tracking-[0.14em] text-white/70"
-                          >
-                            PDF
-                          </a>
-                        ) : null}
-                        {latestContract && ["draft", "offer_sent", "artist_viewed_offer"].includes(latestContract.status) ? (
-                          <form action={sendSigningInviteAction}>
+                          {latestContract ? (
+                            <Link href={`/admin/signing/contracts/${latestContract.id}`} className="rounded-md border border-gold px-2 py-1.5 text-[10px] uppercase tracking-[0.14em] text-gold">
+                              Contract
+                            </Link>
+                          ) : null}
+                          {latestContract ? (
+                            <a
+                              href={`/api/signing/contracts/${latestContract.id}/pdf`}
+                              className="rounded-md border border-white/20 px-2 py-1.5 text-[10px] uppercase tracking-[0.14em] text-white/70"
+                            >
+                              PDF
+                            </a>
+                          ) : null}
+                          {latestContract && ["draft", "offer_sent", "artist_viewed_offer"].includes(latestContract.status) ? (
+                            <form action={sendSigningInviteAction}>
+                              <input type="hidden" name="redirectTo" value="/admin/signing/artists" />
+                              <input type="hidden" name="contract_id" value={latestContract.id} />
+                              <button type="submit" className="rounded-md border border-gold px-2 py-1.5 text-[10px] uppercase tracking-[0.14em] text-gold">
+                                Send to Sign
+                              </button>
+                            </form>
+                          ) : null}
+                        </div>
+                      </td>
+                      <td className="px-3 py-3">
+                        <form action={updateArtistLeadStageAction} className="flex min-w-[210px] gap-2">
+                          <input type="hidden" name="redirectTo" value="/admin/signing/artists" />
+                          <input type="hidden" name="lead_id" value={lead.id} />
+                          <select name="status" defaultValue={lead.status} className="w-full rounded-md border border-white/15 bg-black px-2 py-1.5 text-[11px] text-white">
+                            {SIGNING_PIPELINE_STAGES.map((stage) => (
+                              <option key={stage} value={stage}>
+                                {stage.replaceAll("_", " ")}
+                              </option>
+                            ))}
+                          </select>
+                          <button type="submit" className="rounded-md border border-gold px-2 py-1.5 text-[10px] uppercase tracking-[0.14em] text-gold">
+                            Save
+                          </button>
+                        </form>
+                      </td>
+                      <td className="px-3 py-3">
+                        <form action={sendOnboardingReminderAction}>
+                          <input type="hidden" name="redirectTo" value="/admin/signing/artists" />
+                          <input type="hidden" name="lead_id" value={lead.id} />
+                          <button type="submit" className="rounded-md border border-white/20 px-2 py-1.5 text-[10px] uppercase tracking-[0.14em] text-white/70">
+                            Onboarding Reminder
+                          </button>
+                        </form>
+                      </td>
+                    </tr>
+                    <tr className="border-b border-white/5">
+                      <td colSpan={7} className="px-3 pb-4">
+                        <details className="rounded-[22px] border border-white/10 bg-black/30 p-4">
+                          <summary className="cursor-pointer list-none text-[11px] uppercase tracking-[0.16em] text-gold">Edit artist intake</summary>
+                          <form action={updateArtistLeadProfileByStaffAction} className="mt-4 space-y-5">
                             <input type="hidden" name="redirectTo" value="/admin/signing/artists" />
-                            <input type="hidden" name="contract_id" value={latestContract.id} />
-                            <button type="submit" className="rounded-md border border-gold px-2 py-1.5 text-[10px] uppercase tracking-[0.14em] text-gold">
-                              Send to Sign
+                            <input type="hidden" name="lead_id" value={lead.id} />
+                            <ArtistIntakeFields
+                              values={{
+                                legalName: lead.legalName,
+                                stageName: lead.stageName,
+                                email: lead.email,
+                                professionalEmail: lead.professionalEmail,
+                                phone: lead.phone,
+                                dateOfBirth: lead.dateOfBirth,
+                                nationality: lead.nationality,
+                                residenceCity: lead.residenceCity,
+                                residenceCountry: lead.residenceCountry,
+                                residenceStateRegion: lead.residenceStateRegion,
+                                addressLine1: lead.addressLine1,
+                                addressLine2: lead.addressLine2,
+                                postalCode: lead.postalCode,
+                                governmentId: lead.governmentId,
+                                primaryGenre: lead.primaryGenre,
+                                representingCountry: lead.representingCountry,
+                                managerName: lead.managerName,
+                                managerEmail: lead.managerEmail,
+                                managerPhone: lead.managerPhone,
+                                proAffiliation: lead.proAffiliation,
+                                ipiNumber: lead.ipiNumber,
+                                notes: lead.notes,
+                                ...socialLinksToFieldValues(lead.socialLinks)
+                              }}
+                              emailLabel="Correo personal"
+                              compact
+                            />
+                            <button type="submit" className="rounded-full border border-gold bg-gold px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-black">
+                              Save artist data
                             </button>
                           </form>
-                        ) : null}
-                      </div>
-                    </td>
-                    <td className="px-3 py-3">
-                      <form action={updateArtistLeadStageAction} className="flex min-w-[210px] gap-2">
-                        <input type="hidden" name="redirectTo" value="/admin/signing/artists" />
-                        <input type="hidden" name="lead_id" value={lead.id} />
-                        <select name="status" defaultValue={lead.status} className="w-full rounded-md border border-white/15 bg-black px-2 py-1.5 text-[11px] text-white">
-                          {SIGNING_PIPELINE_STAGES.map((stage) => (
-                            <option key={stage} value={stage}>
-                              {stage.replaceAll("_", " ")}
-                            </option>
-                          ))}
-                        </select>
-                        <button type="submit" className="rounded-md border border-gold px-2 py-1.5 text-[10px] uppercase tracking-[0.14em] text-gold">
-                          Save
-                        </button>
-                      </form>
-                    </td>
-                    <td className="px-3 py-3">
-                      <form action={sendOnboardingReminderAction}>
-                        <input type="hidden" name="redirectTo" value="/admin/signing/artists" />
-                        <input type="hidden" name="lead_id" value={lead.id} />
-                        <button type="submit" className="rounded-md border border-white/20 px-2 py-1.5 text-[10px] uppercase tracking-[0.14em] text-white/70">
-                          Onboarding Reminder
-                        </button>
-                      </form>
-                    </td>
-                  </tr>
+                        </details>
+                      </td>
+                    </tr>
+                  </Fragment>
                 );
               })}
             </tbody>

@@ -1,9 +1,9 @@
-import Link from "next/link";
+import { ActiveNavLink } from "@/components/shared/active-nav-link";
 
 const sections = [
   ["catalog", "Catalog"],
   ["launch", "Launch Center"],
-  ["media-kit", "MediaKit"],
+  ["media-kit", "Media Kit"],
   ["gallery", "Gallery"],
   ["documents", "Documents"],
   ["bookings", "Bookings"],
@@ -16,21 +16,20 @@ const sections = [
 
 export function ArtistHubNav({ artistSlug, active }: { artistSlug: string; active: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-3">
+    <div className="app-panel-soft rounded-[24px] p-3" data-active-section={active}>
       <div className="flex flex-wrap gap-2">
         {sections.map(([path, label]) => {
           const href = `/dashboard/artist-hub/${artistSlug}/${path}`;
-          const isActive = active === path;
           return (
-            <Link
+            <ActiveNavLink
               key={path}
               href={href}
-              className={`rounded-full border px-3 py-1.5 text-xs uppercase tracking-[0.16em] transition ${
-                isActive ? "border-gold bg-gold/15 text-gold" : "border-white/15 text-white/70 hover:border-gold/40 hover:text-white"
-              }`}
+              className="rounded-full border px-3 py-1.5 text-xs uppercase tracking-[0.16em] transition"
+              activeClassName="border-gold bg-gold/15 text-gold"
+              inactiveClassName="border-white/15 text-white/70 hover:border-gold/40 hover:text-white"
             >
               {label}
-            </Link>
+            </ActiveNavLink>
           );
         })}
       </div>

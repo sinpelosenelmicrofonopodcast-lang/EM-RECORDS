@@ -1,7 +1,7 @@
 "use client";
 
 import Link, { type LinkProps } from "next/link";
-import type { MouseEventHandler, ReactNode } from "react";
+import type { AnchorHTMLAttributes, MouseEventHandler, ReactNode } from "react";
 import { trackEvent } from "@/lib/tracking";
 
 type TrackedLinkProps = LinkProps & {
@@ -10,7 +10,7 @@ type TrackedLinkProps = LinkProps & {
   eventName: string;
   metadata?: Record<string, unknown>;
   onClick?: MouseEventHandler<HTMLAnchorElement>;
-};
+} & Pick<AnchorHTMLAttributes<HTMLAnchorElement>, "aria-current" | "target" | "rel">;
 
 export function TrackedLink({ children, eventName, metadata, onClick, ...props }: TrackedLinkProps) {
   return (

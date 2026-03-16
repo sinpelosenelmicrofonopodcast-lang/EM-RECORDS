@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AdminSigningShell } from "@/components/signing/admin-signing-shell";
 import { ActivityTimeline } from "@/components/signing/activity-timeline";
 import { StatusBadge } from "@/components/signing/status-badge";
-import { createArtistLeadAction, updateArtistLeadStageAction } from "@/lib/actions/signing";
+import { updateArtistLeadStageAction } from "@/lib/actions/signing";
 import { getSigningAdminStats, listArtistLeads, listAuditLogs } from "@/lib/signing/service";
 import { SIGNING_PIPELINE_STAGES } from "@/lib/signing/constants";
 
@@ -59,7 +59,7 @@ export default async function AdminSigningOverviewPage({ searchParams }: Props) 
           ["Fully Executed This Month", stats.fullyExecutedThisMonth],
           ["Expired / Declined", stats.expiredOrDeclined]
         ].map(([label, value]) => (
-          <article key={String(label)} className="premium-card rounded-2xl p-4">
+          <article key={String(label)} className="metric-card rounded-[26px] p-5">
             <p className="text-xs uppercase tracking-[0.16em] text-white/55">{label}</p>
             <p className="mt-2 font-display text-3xl text-white">{value}</p>
           </article>
@@ -67,38 +67,27 @@ export default async function AdminSigningOverviewPage({ searchParams }: Props) 
       </section>
 
       <section className="grid gap-5 lg:grid-cols-[1.2fr_1fr]">
-        <article className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+        <article className="app-panel rounded-[28px] p-5 md:p-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-white">Create Artist Lead</h2>
+            <h2 className="text-lg font-semibold text-white">Artist Intake</h2>
             <Link href="/admin/signing/artists" className="text-xs uppercase tracking-[0.16em] text-gold hover:underline">
-              Open full artists view
+              Open intake form
             </Link>
           </div>
-          <form action={createArtistLeadAction} className="mt-4 grid gap-3 md:grid-cols-2">
-            <input type="hidden" name="redirectTo" value="/admin/signing" />
-            <input name="legal_name" required placeholder="Legal name" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white" />
-            <input name="stage_name" placeholder="Stage name" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white" />
-            <input name="email" type="email" required placeholder="Email" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white" />
-            <input name="phone" placeholder="Phone" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white" />
-            <input name="country" placeholder="Country" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white" />
-            <input name="state" placeholder="State" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white" />
-            <input name="date_of_birth" type="date" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white" />
-            <select name="pro_affiliation" defaultValue="none" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white">
-              <option value="none">PRO affiliation</option>
-              <option value="BMI">BMI</option>
-              <option value="ASCAP">ASCAP</option>
-              <option value="SESAC">SESAC</option>
-            </select>
-            <input name="ipi_number" placeholder="IPI Number" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white" />
-            <input name="social_instagram" placeholder="Instagram URL" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white" />
-            <textarea name="notes" rows={2} placeholder="Notes" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white md:col-span-2" />
-            <button type="submit" className="rounded-full border border-gold bg-gold px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-black md:col-span-2 md:justify-self-start">
-              Create Lead
-            </button>
-          </form>
+          <div className="mt-4 rounded-2xl border border-white/10 bg-black/30 p-4">
+            <p className="text-sm text-white/70">
+              The compact lead form was removed because it allowed incomplete artist records. Use the full intake flow so legal, contact and contract fields are captured in one pass.
+            </p>
+            <Link
+              href="/admin/signing/artists"
+              className="mt-4 inline-flex rounded-full border border-gold bg-gold px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.18em] text-black"
+            >
+              Open full intake
+            </Link>
+          </div>
         </article>
 
-        <article className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+        <article className="app-panel rounded-[28px] p-5 md:p-6">
           <h2 className="text-lg font-semibold text-white">Recent Activity</h2>
           <div className="mt-4">
             <ActivityTimeline events={timeline.slice(0, 10)} />
@@ -106,7 +95,7 @@ export default async function AdminSigningOverviewPage({ searchParams }: Props) 
         </article>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+      <section className="app-panel rounded-[28px] p-5 md:p-6">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-white">Pipeline Board</h2>
           <Link href="/admin/signing/contracts" className="text-xs uppercase tracking-[0.16em] text-gold hover:underline">
@@ -152,4 +141,3 @@ export default async function AdminSigningOverviewPage({ searchParams }: Props) 
     </AdminSigningShell>
   );
 }
-

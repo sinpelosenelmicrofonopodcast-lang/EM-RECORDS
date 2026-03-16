@@ -1,5 +1,6 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { LiveSalesTable } from "@/components/admin/live-sales-table";
+import { PageIntro } from "@/components/shared/page-intro";
 import { requireAdminPage } from "@/lib/auth";
 import { getAdminMetrics, getTicketOrders } from "@/lib/queries";
 
@@ -14,10 +15,11 @@ export default async function AdminDashboardPage() {
 
   return (
     <AdminShell>
-      <header>
-        <p className="text-xs uppercase tracking-[0.24em] text-gold">EM Control Room</p>
-        <h1 className="mt-3 font-display text-4xl text-white">Dashboard</h1>
-      </header>
+      <PageIntro
+        eyebrow="EM Control Room"
+        title="Dashboard"
+        description="Operational snapshot for catalog, demand, submissions and revenue. The top layer now prioritizes live signals over decorative admin chrome."
+      />
 
       <div className="grid gap-4 md:grid-cols-3">
         {[
@@ -35,15 +37,20 @@ export default async function AdminDashboardPage() {
           ["Fan Conversion", conversion],
           ["Submit to Vote", submitToVote]
         ].map(([label, value]) => (
-          <article key={String(label)} className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+          <article key={String(label)} className="metric-card rounded-[26px] p-5">
             <p className="text-xs uppercase tracking-[0.18em] text-white/55">{label}</p>
             <p className="mt-2 font-display text-3xl text-white">{value}</p>
           </article>
         ))}
       </div>
 
-      <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
-        <p className="text-xs uppercase tracking-[0.2em] text-gold">Real-time Ticket Sales</p>
+      <section className="app-panel rounded-[28px] p-5 md:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-gold">Real-time Ticket Sales</p>
+            <p className="mt-2 max-w-2xl text-sm text-white/60">Live order feed for events and paid conversions. This stays visible because it informs staffing, promo timing and settlement follow-up.</p>
+          </div>
+        </div>
         <LiveSalesTable initialOrders={orders} />
       </section>
     </AdminShell>

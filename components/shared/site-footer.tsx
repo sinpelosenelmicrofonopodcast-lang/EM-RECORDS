@@ -6,77 +6,94 @@ import { getSocialLinks } from "@/lib/queries";
 export async function SiteFooter() {
   const lang = await getSiteLanguage();
   const socialLinks = await getSocialLinks();
+  const primaryLinks = [
+    { href: "/artists", label: lang === "es" ? "Artistas" : "Artists" },
+    { href: "/music", label: lang === "es" ? "Música" : "Music" },
+    { href: "/events", label: lang === "es" ? "Eventos" : "Events" },
+    { href: "/press", label: lang === "es" ? "Prensa" : "Press" },
+    { href: "/join", label: lang === "es" ? "Únete a EM" : "Join EM" }
+  ];
+  const workspaces = [
+    { href: "/artist/login", label: lang === "es" ? "Portal del artista" : "Artist portal" },
+    { href: "/admin", label: "Admin" },
+    { href: "/publishing", label: "Publishing" },
+    { href: "/licensing", label: "Licensing" }
+  ];
+  const legalLinks = [
+    { href: "/legal", label: lang === "es" ? "Términos, privacidad y copyright" : "Terms, privacy and copyright" },
+    { href: "/publishing", label: "Publishing by DGM Music" },
+    { href: "/licensing", label: "Licensing" }
+  ];
 
   return (
-    <footer className="border-t border-white/10 bg-black">
-      <div className="mx-auto grid w-full max-w-7xl gap-8 px-6 py-14 md:grid-cols-4 md:px-10">
-        <div>
+    <footer className="border-t border-white/10 bg-black/95">
+      <div className="mx-auto grid w-full max-w-7xl gap-8 px-5 py-14 md:grid-cols-[1.35fr_0.9fr_0.9fr_1fr] md:px-10">
+        <div className="space-y-4">
           <div className="flex w-[220px] items-center justify-center">
             <EmLogo alt="EM Records LLC" />
           </div>
-          <p className="mt-3 max-w-sm text-sm text-white/60">
+          <p className="max-w-sm text-sm leading-relaxed text-white/60">
             {lang === "es"
               ? "Disquera urbana latina moderna con visión internacional. Impulsada por cultura, disciplina y ejecución."
               : "Dark modern latin urban label with international vision. Powered by culture, discipline and execution."}
           </p>
+          <p className="text-xs uppercase tracking-[0.18em] text-white/38">EM Records LLC</p>
         </div>
 
         <div>
-          <p className="text-xs uppercase tracking-[0.24em] text-white/60">EM</p>
+          <p className="text-xs uppercase tracking-[0.24em] text-white/55">{lang === "es" ? "Explorar" : "Explore"}</p>
           <div className="mt-3 flex flex-col gap-2 text-sm text-white/80">
-            <Link href="/artists" className="hover:text-gold">
-              Artists
-            </Link>
-            <Link href="/music" className="hover:text-gold">
-              Music
-            </Link>
-            <Link href="/join" className="hover:text-gold">
-              Join EM
-            </Link>
-            <Link href="/events" className="hover:text-gold">
-              Booking
-            </Link>
-            <Link href="/press" className="hover:text-gold">
-              Press
-            </Link>
+            {primaryLinks.map((item) => (
+              <Link key={item.href} href={item.href} className="transition hover:text-gold">
+                {item.label}
+              </Link>
+            ))}
           </div>
         </div>
 
         <div>
-          <p className="text-xs uppercase tracking-[0.24em] text-white/60">{lang === "es" ? "Social" : "Social"}</p>
+          <p className="text-xs uppercase tracking-[0.24em] text-white/55">{lang === "es" ? "Portales" : "Workspaces"}</p>
           <div className="mt-3 flex flex-col gap-2 text-sm text-white/80">
-            {socialLinks.length > 0 ? (
-              socialLinks.map((link) => (
-                <a key={link.id} href={link.url} target="_blank" rel="noreferrer" className="hover:text-gold">
-                  {link.label}
-                </a>
-              ))
-            ) : (
-              <p className="text-white/45">{lang === "es" ? "Sin redes configuradas." : "No social links configured."}</p>
-            )}
+            {workspaces.map((item) => (
+              <Link key={item.href} href={item.href} className="transition hover:text-gold">
+                {item.label}
+              </Link>
+            ))}
           </div>
         </div>
 
         <div>
-          <p className="text-xs uppercase tracking-[0.24em] text-white/60">{lang === "es" ? "Legal" : "Legal"}</p>
+          <p className="text-xs uppercase tracking-[0.24em] text-white/55">{lang === "es" ? "Legal y social" : "Legal and social"}</p>
           <div className="mt-3 flex flex-col gap-2 text-sm text-white/80">
-            <Link href="/legal" className="hover:text-gold">
-              {lang === "es" ? "Términos, Privacidad, Copyright, DMCA" : "Terms, Privacy, Copyright, DMCA"}
-            </Link>
-            <Link href="/licensing" className="hover:text-gold">
-              Licensing
-            </Link>
-            <Link href="/publishing" className="hover:text-gold">
-              Publishing by DGM Music
-            </Link>
+            {legalLinks.map((item) => (
+              <Link key={item.href} href={item.href} className="transition hover:text-gold">
+                {item.label}
+              </Link>
+            ))}
+            <div className="mt-2 border-t border-white/10 pt-3">
+              {socialLinks.length > 0 ? (
+                socialLinks.map((link) => (
+                  <a key={link.id} href={link.url} target="_blank" rel="noreferrer" className="block transition hover:text-gold">
+                    {link.label}
+                  </a>
+                ))
+              ) : (
+                <p className="text-white/45">{lang === "es" ? "Sin redes configuradas." : "No social links configured."}</p>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="border-t border-white/10 py-5 text-center text-xs uppercase tracking-[0.16em] text-white/50">
-        {lang === "es"
-          ? `Copyright ${new Date().getFullYear()} EM Records LLC. Todos los derechos reservados.`
-          : `Copyright ${new Date().getFullYear()} EM Records LLC. All rights reserved.`}
+      <div className="border-t border-white/10">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-2 px-5 py-5 text-xs uppercase tracking-[0.16em] text-white/45 md:flex-row md:items-center md:justify-between md:px-10">
+          <p>
+            {lang === "es"
+              ? `Copyright ${new Date().getFullYear()} EM Records LLC. Todos los derechos reservados.`
+              : `Copyright ${new Date().getFullYear()} EM Records LLC. All rights reserved.`}
+          </p>
+          <p>{lang === "es" ? "Operación, catálogo y portal en una sola plataforma." : "Operations, catalog and portal in one platform."}</p>
+        </div>
       </div>
     </footer>
   );

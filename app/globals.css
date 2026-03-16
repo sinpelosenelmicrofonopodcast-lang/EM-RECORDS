@@ -95,3 +95,42 @@ a {
 .animate-fade-up {
   animation: fadeUp 700ms ease-out both;
 }
+
+.app-shell {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 88rem;
+  padding-inline: 1.5rem;
+  padding-block: 2rem 2.5rem;
+}
+
+.app-panel {
+  border: 1px solid var(--em-line-soft);
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0.012));
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.app-panel-soft {
+  border: 1px solid var(--em-line-soft);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.metric-card {
+  border: 1px solid var(--em-line-soft);
+  background:
+    radial-gradient(circle at top right, rgba(198, 168, 91, 0.12), transparent 42%),
+    linear-gradient(175deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0.01));
+}
+
+.nav-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .app-shell {
+    padding-inline: 2.5rem;
+    padding-block: 2.5rem 3rem;
+  }
+}
