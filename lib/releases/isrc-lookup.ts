@@ -12,7 +12,7 @@ export async function lookupIsrc(isrc: string): Promise<IsrcMetadata | null> {
 
   try {
 
-    const url = \`https://api.song.link/v1-alpha.1/links?isrc=\${encodeURIComponent(isrc)}\`;
+    const url = "https://api.song.link/v1-alpha.1/links?isrc=" + encodeURIComponent(isrc);
 
     const res = await fetch(url);
 

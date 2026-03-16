@@ -1,7 +1,9 @@
-import { supabase } from "../supabase";
+import { createServiceClient } from "@/lib/supabase/service";
 import { lookupIsrc } from "./isrc-lookup";
 
 export async function createSongFromIsrc(isrc: string) {
+
+  const supabase = createServiceClient();
 
   const { data: existing } = await supabase
     .from("songs")
@@ -9,9 +11,7 @@ export async function createSongFromIsrc(isrc: string) {
     .eq("isrc", isrc)
     .maybeSingle();
 
-  if (existing) {
-    return existing;
-  }
+  if (existing) return existing;
 
   const metadata = await lookupIsrc(isrc);
 
@@ -35,9 +35,7 @@ export async function createSongFromIsrc(isrc: string) {
     .select()
     .single();
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
   return data;
 }
