@@ -18,14 +18,16 @@ export async function lookupIsrc(isrc: string): Promise<IsrcMetadata | null> {
 
     if (!res.ok) return null;
 
-    const json = await res.json();
+    const json: any = await res.json();
 
     const links = json?.linksByPlatform ?? {};
 
+    const entity = json?.entitiesByUniqueId
+      ? Object.values(json.entitiesByUniqueId)[0] as any
+      : null;
+
     return {
-      title: json?.entitiesByUniqueId
-        ? Object.values(json.entitiesByUniqueId)[0]?.title
-        : undefined,
+      title: entity?.title ?? undefined,
       isrc,
       spotifyEmbed: links.spotify?.url ?? null,
       appleEmbed: links.appleMusic?.url ?? null,
