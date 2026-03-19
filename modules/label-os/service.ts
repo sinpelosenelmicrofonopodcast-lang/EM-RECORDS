@@ -57,11 +57,20 @@ function getService(service?: ServiceClient): ServiceClient {
   return service ?? createServiceClient();
 }
 
+function isRecoverableSchemaError(message: string): boolean {
+  return (
+    message.includes("relation") ||
+    message.includes("schema cache") ||
+    message.includes("column") ||
+    message.includes("does not exist")
+  );
+}
+
 async function readRows<T>(promiseLike: PromiseLike<{ data: T[] | null; error: { message?: string } | null }>, fallback: T[] = []): Promise<T[]> {
   const { data, error } = await promiseLike;
   if (error) {
     const message = String(error.message ?? "");
-    if (message.includes("relation") || message.includes("schema cache")) return fallback;
+    if (isRecoverableSchemaError(message)) return fallback;
     throw new Error(message || "Failed to read rows.");
   }
   return Array.isArray(data) ? data : fallback;
@@ -140,14 +149,14 @@ export async function getLabelOsAuditChecks(service?: ServiceClient): Promise<La
     supabase.from("campaigns").select("id", { head: true, count: "exact" }),
     supabase.from("service_plans").select("id", { head: true, count: "exact" }),
     supabase.from("artist_subscriptions").select("id", { head: true, count: "exact" })
-  ]);
+  ]).catch(() => []);
 
   const dbEntries: Array<{ label: string; result: { error: { message?: string } | null; count: number | null } }> = [
-    { label: "contributors", result: dbChecks[0] },
-    { label: "royalties", result: dbChecks[1] },
-    { label: "campaigns", result: dbChecks[2] },
-    { label: "service_plans", result: dbChecks[3] },
-    { label: "artist_subscriptions", result: dbChecks[4] }
+    { label: "contributors", result: (dbChecks[0] as any) ?? { error: { message: "Unavailable" }, count: null } },
+    { label: "royalties", result: (dbChecks[1] as any) ?? { error: { message: "Unavailable" }, count: null } },
+    { label: "campaigns", result: (dbChecks[2] as any) ?? { error: { message: "Unavailable" }, count: null } },
+    { label: "service_plans", result: (dbChecks[3] as any) ?? { error: { message: "Unavailable" }, count: null } },
+    { label: "artist_subscriptions", result: (dbChecks[4] as any) ?? { error: { message: "Unavailable" }, count: null } }
   ];
 
   dbEntries.forEach(({ label, result }, index) => {
@@ -382,117 +391,156 @@ async function createInactiveArtistAlerts(
 
 export async function getLabelOsDashboardData(service?: ServiceClient): Promise<LabelOsDashboard> {
   const supabase = getService(service);
-  const [
-    artists,
-    releases,
-    songs,
-    campaignsRows,
-    royaltiesRows,
-    plansRows,
-    subscriptionsRows,
-    queueRows,
-    ticketOrders,
-    analyticsRows,
-    readiness
-  ] = await Promise.all([
-    readRows<ArtistRow>(supabase.from("artists").select("id,name,stage_name,bio,genre,primary_genre,active,avatar_url,hero_media_url,spotify_url,youtube_url,instagram_url,tiktok_url")),
-    readRows<ReleaseRow>(supabase.from("releases").select("id,artist_id,title,release_date,content_status,artist_name")),
-    readRows<SongRow>(supabase.from("songs").select("id,artist_id,release_id,title")),
-    readRows<any>(supabase.from("campaigns").select("*").order("created_at", { ascending: false }).limit(12)),
-    readRows<any>(supabase.from("royalties").select("*").order("statement_period", { ascending: false }).limit(12)),
-    readRows<any>(supabase.from("service_plans").select("*").order("amount_cents", { ascending: true })),
-    readRows<any>(supabase.from("artist_subscriptions").select("*")),
-    readRows<any>(supabase.from("content_queue").select("id,artist_id,status,created_at").order("created_at", { ascending: false }).limit(200)),
-    readRows<any>(supabase.from("ticket_orders").select("amount_total,created_at,status").eq("status", "paid")),
-    readRows<any>(supabase.from("post_analytics").select("engagement_rate").order("snapshot_at", { ascending: false }).limit(100)),
-    getLabelOsAuditChecks(supabase)
-  ]);
 
-  const artistNameById = new Map(artists.map((artist) => [artist.id, artist.stage_name ?? artist.name]));
-  const campaigns = campaignsRows.map((row) => mapCampaign(row, artistNameById));
-  const royalties = royaltiesRows.map((row) => mapRoyalty(row, artistNameById));
-  const servicePlans = plansRows.map(mapPlan);
+  try {
+    const [
+      artists,
+      releases,
+      songs,
+      campaignsRows,
+      royaltiesRows,
+      plansRows,
+      subscriptionsRows,
+      queueRows,
+      ticketOrders,
+      analyticsRows,
+      readiness
+    ] = await Promise.all([
+      readRows<ArtistRow>(supabase.from("artists").select("id,name,stage_name,bio,genre,primary_genre,active,avatar_url,hero_media_url,spotify_url,youtube_url,instagram_url,tiktok_url")),
+      readRows<ReleaseRow>(supabase.from("releases").select("id,artist_id,title,release_date,content_status,artist_name")),
+      readRows<SongRow>(supabase.from("songs").select("id,artist_id,release_id,title")),
+      readRows<any>(supabase.from("campaigns").select("*").order("created_at", { ascending: false }).limit(12)),
+      readRows<any>(supabase.from("royalties").select("*").order("statement_period", { ascending: false }).limit(12)),
+      readRows<any>(supabase.from("service_plans").select("*").order("amount_cents", { ascending: true })),
+      readRows<any>(supabase.from("artist_subscriptions").select("*")),
+      readRows<any>(supabase.from("content_queue").select("id,artist_id,status,created_at").order("created_at", { ascending: false }).limit(200)),
+      readRows<any>(supabase.from("ticket_orders").select("amount_total,created_at,status").eq("status", "paid")),
+      readRows<any>(supabase.from("post_analytics").select("engagement_rate").order("snapshot_at", { ascending: false }).limit(100)),
+      getLabelOsAuditChecks(supabase)
+    ]);
 
-  const activeCampaigns = campaigns.filter((item) => item.status === "active" || item.status === "boosting" || item.status === "scheduled").length;
-  const queuedPosts = queueRows.filter((row) => ["draft", "scheduled", "posted"].includes(String(row.status ?? ""))).length;
-  const avgEngagement =
-    analyticsRows.length > 0 ? Number((analyticsRows.reduce((sum, row) => sum + Number(row.engagement_rate ?? 0), 0) / analyticsRows.length).toFixed(4)) : 0;
+    const artistNameById = new Map(artists.map((artist) => [artist.id, artist.stage_name ?? artist.name]));
+    const campaigns = campaignsRows.map((row) => mapCampaign(row, artistNameById));
+    const royalties = royaltiesRows.map((row) => mapRoyalty(row, artistNameById));
+    const servicePlans = plansRows.map(mapPlan);
 
-  const monthlyRevenueCents = ticketOrders
-    .filter((row) => {
-      const createdAt = Date.parse(String(row.created_at ?? ""));
-      return !Number.isNaN(createdAt) && createdAt >= Date.now() - 30 * 24 * 60 * 60 * 1000;
-    })
-    .reduce((sum, row) => sum + cents(row.amount_total), 0);
+    const activeCampaigns = campaigns.filter((item) => item.status === "active" || item.status === "boosting" || item.status === "scheduled").length;
+    const queuedPosts = queueRows.filter((row) => ["draft", "scheduled", "posted"].includes(String(row.status ?? ""))).length;
+    const avgEngagement =
+      analyticsRows.length > 0 ? Number((analyticsRows.reduce((sum, row) => sum + Number(row.engagement_rate ?? 0), 0) / analyticsRows.length).toFixed(4)) : 0;
 
-  const activeSubs = subscriptionsRows.filter((row) => String(row.status) === "active");
-  const trialingSubs = subscriptionsRows.filter((row) => String(row.status) === "trialing");
-  const pastDueSubs = subscriptionsRows.filter((row) => String(row.status) === "past_due");
-  const planById = new Map(servicePlans.map((plan) => [plan.id, plan]));
-  const mrrCents = activeSubs.reduce((sum, row) => sum + cents(planById.get(String(row.plan_id ?? ""))?.amountCents), 0);
-  const pendingRoyaltiesCents = royalties.filter((row) => row.status === "pending").reduce((sum, row) => sum + Math.round(row.payoutAmount * 100), 0);
+    const monthlyRevenueCents = ticketOrders
+      .filter((row) => {
+        const createdAt = Date.parse(String(row.created_at ?? ""));
+        return !Number.isNaN(createdAt) && createdAt >= Date.now() - 30 * 24 * 60 * 60 * 1000;
+      })
+      .reduce((sum, row) => sum + cents(row.amount_total), 0);
 
-  const alerts: LabelOsAlert[] = [
-    ...readiness
-      .filter((item) => item.status !== "pass")
-      .slice(0, 4)
-      .map((item): LabelOsAlert => ({
-        id: `audit-${item.id}`,
-        severity: item.status === "fail" ? "critical" : "warning",
-        titleEn: item.label,
-        titleEs: item.label,
-        detailEn: item.detail,
-        detailEs: item.detail,
-        actionHref: "/admin/label-os"
-      })),
-    ...(await createInactiveArtistAlerts(artists, queueRows))
-  ].slice(0, 8);
+    const activeSubs = subscriptionsRows.filter((row) => String(row.status) === "active");
+    const trialingSubs = subscriptionsRows.filter((row) => String(row.status) === "trialing");
+    const pastDueSubs = subscriptionsRows.filter((row) => String(row.status) === "past_due");
+    const planById = new Map(servicePlans.map((plan) => [plan.id, plan]));
+    const mrrCents = activeSubs.reduce((sum, row) => sum + cents(planById.get(String(row.plan_id ?? ""))?.amountCents), 0);
+    const pendingRoyaltiesCents = royalties.filter((row) => row.status === "pending").reduce((sum, row) => sum + Math.round(row.payoutAmount * 100), 0);
 
-  const queueByArtist = new Map<string, string | null>();
-  for (const row of queueRows) {
-    if (row.artist_id && !queueByArtist.has(String(row.artist_id))) {
-      queueByArtist.set(String(row.artist_id), row.created_at ? String(row.created_at) : null);
+    const alerts: LabelOsAlert[] = [
+      ...readiness
+        .filter((item) => item.status !== "pass")
+        .slice(0, 4)
+        .map((item): LabelOsAlert => ({
+          id: `audit-${item.id}`,
+          severity: item.status === "fail" ? "critical" : "warning",
+          titleEn: item.label,
+          titleEs: item.label,
+          detailEn: item.detail,
+          detailEs: item.detail,
+          actionHref: "/admin/label-os"
+        })),
+      ...(await createInactiveArtistAlerts(artists, queueRows))
+    ].slice(0, 8);
+
+    const queueByArtist = new Map<string, string | null>();
+    for (const row of queueRows) {
+      if (row.artist_id && !queueByArtist.has(String(row.artist_id))) {
+        queueByArtist.set(String(row.artist_id), row.created_at ? String(row.created_at) : null);
+      }
     }
+
+    const managerInsights: LabelOsManagerInsight[] = await generateLabelManagerInsights(
+      artists.map((artist) => ({
+        id: artist.id,
+        name: artist.name,
+        stageName: artist.stage_name ?? null,
+        active: artist.active !== false,
+        releaseTitles: releases.filter((release) => String(release.artist_id ?? "") === artist.id).map((release) => release.title),
+        topTracks: songs.filter((song) => song.artist_id === artist.id).map((song) => song.title),
+        engagementRate: avgEngagement,
+        lastContentAt: queueByArtist.get(artist.id) ?? null
+      }))
+    );
+
+    return {
+      metrics: {
+        artists: artists.length,
+        activeArtists: artists.filter((artist) => artist.active !== false).length,
+        releases: releases.length,
+        songs: songs.length,
+        activeCampaigns,
+        queuedPosts,
+        monthlyRevenueCents,
+        mrrCents,
+        pendingRoyaltiesCents,
+        avgEngagement
+      },
+      alerts,
+      campaigns: campaigns.slice(0, 8),
+      royalties: royalties.slice(0, 8),
+      servicePlans: servicePlans.slice(0, 6),
+      subscriptions: {
+        active: activeSubs.length,
+        trialing: trialingSubs.length,
+        pastDue: pastDueSubs.length
+      },
+      managerInsights,
+      readiness
+    };
+  } catch (error) {
+    return {
+      metrics: {
+        artists: 0,
+        activeArtists: 0,
+        releases: 0,
+        songs: 0,
+        activeCampaigns: 0,
+        queuedPosts: 0,
+        monthlyRevenueCents: 0,
+        mrrCents: 0,
+        pendingRoyaltiesCents: 0,
+        avgEngagement: 0
+      },
+      alerts: [
+        {
+          id: "label-os-fallback",
+          severity: "warning",
+          titleEn: "Label OS is running in degraded mode",
+          titleEs: "Label OS esta corriendo en modo degradado",
+          detailEn: String((error as Error).message ?? "A schema or integration dependency is still missing."),
+          detailEs: String((error as Error).message ?? "Todavia falta una dependencia de schema o integracion."),
+          actionHref: "/admin/label-os"
+        }
+      ],
+      campaigns: [],
+      royalties: [],
+      servicePlans: [],
+      subscriptions: {
+        active: 0,
+        trialing: 0,
+        pastDue: 0
+      },
+      managerInsights: [],
+      readiness: await getLabelOsAuditChecks(supabase).catch(() => [])
+    };
   }
-
-  const managerInsights: LabelOsManagerInsight[] = await generateLabelManagerInsights(
-    artists.map((artist) => ({
-      id: artist.id,
-      name: artist.name,
-      stageName: artist.stage_name ?? null,
-      active: artist.active !== false,
-      releaseTitles: releases.filter((release) => String(release.artist_id ?? "") === artist.id).map((release) => release.title),
-      topTracks: songs.filter((song) => song.artist_id === artist.id).map((song) => song.title),
-      engagementRate: avgEngagement,
-      lastContentAt: queueByArtist.get(artist.id) ?? null
-    }))
-  );
-
-  return {
-    metrics: {
-      artists: artists.length,
-      activeArtists: artists.filter((artist) => artist.active !== false).length,
-      releases: releases.length,
-      songs: songs.length,
-      activeCampaigns,
-      queuedPosts,
-      monthlyRevenueCents,
-      mrrCents,
-      pendingRoyaltiesCents,
-      avgEngagement
-    },
-    alerts,
-    campaigns: campaigns.slice(0, 8),
-    royalties: royalties.slice(0, 8),
-    servicePlans: servicePlans.slice(0, 6),
-    subscriptions: {
-      active: activeSubs.length,
-      trialing: trialingSubs.length,
-      pastDue: pastDueSubs.length
-    },
-    managerInsights,
-    readiness
-  };
 }
 
 export async function recordRoyaltyStatement(
