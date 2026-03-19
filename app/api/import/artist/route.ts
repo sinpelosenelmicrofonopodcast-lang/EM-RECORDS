@@ -15,7 +15,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      imported: releases.length
+      imported: Array.isArray(releases) ? releases.length : 0
     });
 
   } catch (err:any) {

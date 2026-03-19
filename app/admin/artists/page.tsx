@@ -2,10 +2,12 @@ import { AdminShell } from "@/components/admin/admin-shell";
 import { upsertArtistAction } from "@/lib/actions/admin";
 import { requireAdminPage } from "@/lib/auth";
 import { getArtists } from "@/lib/queries";
+import { syncArtistContentAction } from "@/modules/growth-engine/actions";
+import { getArtistsGrowthStatus } from "@/modules/artist-ingestion/service";
 
 export default async function AdminArtistsPage() {
   await requireAdminPage();
-  const artists = await getArtists();
+  const [artists, growthStatus] = await Promise.all([getArtists(), getArtistsGrowthStatus()]);
 
   return (
     <AdminShell>
@@ -13,6 +15,48 @@ export default async function AdminArtistsPage() {
         <p className="text-xs uppercase tracking-[0.22em] text-gold">Artists Management</p>
         <h1 className="mt-2 font-display text-4xl text-white">Artists</h1>
       </div>
+
+      <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-white/55">Artist Ingestion</p>
+            <h2 className="mt-2 font-display text-2xl text-white">Connected Sources</h2>
+          </div>
+          <form action={syncArtistContentAction}>
+            <button type="submit" className="rounded-full border border-gold px-5 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-gold">
+              Sync All Artists
+            </button>
+          </form>
+        </div>
+
+        <div className="mt-5 grid gap-3 xl:grid-cols-2">
+          {growthStatus.map((artist) => (
+            <article key={artist.id} className="rounded-xl border border-white/10 bg-black/30 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm text-white">{artist.name}</p>
+                  <p className="mt-1 text-xs uppercase tracking-[0.16em] text-white/45">{artist.active ? "active" : "inactive"}</p>
+                </div>
+                <form action={syncArtistContentAction}>
+                  <input type="hidden" name="artistId" value={artist.id} />
+                  <button type="submit" className="rounded-full border border-white/20 px-4 py-2 text-[11px] uppercase tracking-[0.16em] text-white/70">
+                    Sync artist
+                  </button>
+                </form>
+              </div>
+
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                <div className="rounded-lg border border-white/10 px-3 py-2 text-sm text-white/70">Cache items: {artist.cacheItems}</div>
+                <div className="rounded-lg border border-white/10 px-3 py-2 text-sm text-white/70">Indexed assets: {artist.assets}</div>
+                <div className="rounded-lg border border-white/10 px-3 py-2 text-sm text-white/70">Spotify: {artist.spotifyConnected ? "connected" : "missing"}</div>
+                <div className="rounded-lg border border-white/10 px-3 py-2 text-sm text-white/70">YouTube: {artist.youtubeConnected ? "connected" : "missing"}</div>
+                <div className="rounded-lg border border-white/10 px-3 py-2 text-sm text-white/70">Instagram: {artist.instagramConnected ? "connected" : "missing"}</div>
+                <div className="rounded-lg border border-white/10 px-3 py-2 text-sm text-white/70">TikTok: {artist.tiktokConnected ? "connected" : "missing"}</div>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
 
       <section className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
         <p className="text-xs uppercase tracking-[0.18em] text-white/55">Create new artist</p>

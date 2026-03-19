@@ -6,6 +6,8 @@ const nav = [
   { href: "/admin", label: "Dashboard", exact: true },
   { href: "/admin/signing", label: "Artist Signing" },
   { href: "/admin/artists", label: "Artists" },
+  { href: "/admin/social-engine", label: "Social Engine" },
+  { href: "/admin/growth-engine", label: "Growth Engine" },
   { href: "/admin/releases", label: "Releases" },
   { href: "/admin/events", label: "Events" },
   { href: "/admin/news", label: "News" },
