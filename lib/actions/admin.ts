@@ -771,78 +771,102 @@ export async function deleteSocialLinkAction(formData: FormData) {
 }
 
 export async function upsertSocialPublishingSettingsAction(formData: FormData) {
-  const supabase = await requireAdminClient();
-  const payload = {
-    id: "default",
-    facebook_enabled: String(formData.get("facebookEnabled") ?? "") === "on",
-    instagram_enabled: String(formData.get("instagramEnabled") ?? "") === "on",
-    auto_release_facebook: String(formData.get("autoReleaseFacebook") ?? "") === "on",
-    auto_release_instagram: String(formData.get("autoReleaseInstagram") ?? "") === "on",
-    auto_artist_facebook: String(formData.get("autoArtistFacebook") ?? "") === "on",
-    auto_artist_instagram: String(formData.get("autoArtistInstagram") ?? "") === "on",
-    auto_video_facebook: String(formData.get("autoVideoFacebook") ?? "") === "on",
-    auto_video_instagram: String(formData.get("autoVideoInstagram") ?? "") === "on",
-    auto_news_facebook: String(formData.get("autoNewsFacebook") ?? "") === "on",
-    auto_news_instagram: String(formData.get("autoNewsInstagram") ?? "") === "on",
-    random_bundle_size: Math.min(Math.max(Number.parseInt(String(formData.get("randomBundleSize") ?? "3"), 10) || 3, 1), 6),
-    release_template: String(formData.get("releaseTemplate") ?? "").trim(),
-    artist_template: String(formData.get("artistTemplate") ?? "").trim(),
-    video_template: String(formData.get("videoTemplate") ?? "").trim(),
-    news_template: String(formData.get("newsTemplate") ?? "").trim(),
-    random_template: String(formData.get("randomTemplate") ?? "").trim()
-  };
+  try {
+    const supabase = await requireAdminClient();
+    const payload = {
+      id: "default",
+      facebook_enabled: String(formData.get("facebookEnabled") ?? "") === "on",
+      instagram_enabled: String(formData.get("instagramEnabled") ?? "") === "on",
+      auto_release_facebook: String(formData.get("autoReleaseFacebook") ?? "") === "on",
+      auto_release_instagram: String(formData.get("autoReleaseInstagram") ?? "") === "on",
+      auto_artist_facebook: String(formData.get("autoArtistFacebook") ?? "") === "on",
+      auto_artist_instagram: String(formData.get("autoArtistInstagram") ?? "") === "on",
+      auto_video_facebook: String(formData.get("autoVideoFacebook") ?? "") === "on",
+      auto_video_instagram: String(formData.get("autoVideoInstagram") ?? "") === "on",
+      auto_news_facebook: String(formData.get("autoNewsFacebook") ?? "") === "on",
+      auto_news_instagram: String(formData.get("autoNewsInstagram") ?? "") === "on",
+      random_bundle_size: Math.min(Math.max(Number.parseInt(String(formData.get("randomBundleSize") ?? "3"), 10) || 3, 1), 6),
+      release_template: String(formData.get("releaseTemplate") ?? "").trim(),
+      artist_template: String(formData.get("artistTemplate") ?? "").trim(),
+      video_template: String(formData.get("videoTemplate") ?? "").trim(),
+      news_template: String(formData.get("newsTemplate") ?? "").trim(),
+      random_template: String(formData.get("randomTemplate") ?? "").trim()
+    };
 
-  const { error } = await supabase.from("social_publish_settings").upsert(payload);
-  if (error) {
-    throw new Error(error.message);
+    const { error } = await supabase.from("social_publish_settings").upsert(payload);
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    revalidateSocialPublishingPaths();
+    redirect("/admin/social-publishing?success=settings-saved");
+  } catch (error) {
+    console.error("upsertSocialPublishingSettingsAction failed", error);
+    redirect(`/admin/social-publishing?error=${encodeURIComponent(String((error as Error)?.message ?? "Failed to save social settings."))}`);
   }
-
-  revalidateSocialPublishingPaths();
 }
 
 export async function publishSocialPostAction(formData: FormData) {
-  const supabase = await requireAdminClient();
-  const preset = String(formData.get("preset") ?? "custom").trim() as
-    | "custom"
-    | "random_releases"
-    | "latest_release"
-    | "latest_video"
-    | "latest_artist"
-    | "latest_news";
-  const rawLinks = String(formData.get("linkUrls") ?? "")
-    .split("\n")
-    .map((item) => item.trim())
-    .filter(Boolean);
+  try {
+    const supabase = await requireAdminClient();
+    const preset = String(formData.get("preset") ?? "custom").trim() as
+      | "custom"
+      | "random_releases"
+      | "latest_release"
+      | "latest_video"
+      | "latest_artist"
+      | "latest_news";
+    const rawLinks = String(formData.get("linkUrls") ?? "")
+      .split("\n")
+      .map((item) => item.trim())
+      .filter(Boolean);
 
-  await publishManualSocialPosts(supabase, {
-    preset,
-    title: String(formData.get("title") ?? "").trim() || null,
-    message: String(formData.get("message") ?? "").trim(),
-    mediaUrl: String(formData.get("mediaUrl") ?? "").trim() || null,
-    linkUrls: rawLinks,
-    itemCount: Math.min(Math.max(Number.parseInt(String(formData.get("itemCount") ?? "3"), 10) || 3, 1), 6),
-    postToFacebook: String(formData.get("postToFacebook") ?? "") === "on",
-    postToInstagram: String(formData.get("postToInstagram") ?? "") === "on"
-  });
+    await publishManualSocialPosts(supabase, {
+      preset,
+      title: String(formData.get("title") ?? "").trim() || null,
+      message: String(formData.get("message") ?? "").trim(),
+      mediaUrl: String(formData.get("mediaUrl") ?? "").trim() || null,
+      linkUrls: rawLinks,
+      itemCount: Math.min(Math.max(Number.parseInt(String(formData.get("itemCount") ?? "3"), 10) || 3, 1), 6),
+      postToFacebook: String(formData.get("postToFacebook") ?? "") === "on",
+      postToInstagram: String(formData.get("postToInstagram") ?? "") === "on"
+    });
 
-  revalidateSocialPublishingPaths();
+    revalidateSocialPublishingPaths();
+    redirect("/admin/social-publishing?success=post-created");
+  } catch (error) {
+    console.error("publishSocialPostAction failed", error);
+    redirect(`/admin/social-publishing?error=${encodeURIComponent(String((error as Error)?.message ?? "Failed to create social post."))}`);
+  }
 }
 
 export async function processSocialQueueAction() {
-  await requireAdminClient();
-  await processSocialPublishingQueue({ limit: 20 });
-  revalidateSocialPublishingPaths();
+  try {
+    await requireAdminClient();
+    await processSocialPublishingQueue({ limit: 20 });
+    revalidateSocialPublishingPaths();
+    redirect("/admin/social-publishing?success=queue-processed");
+  } catch (error) {
+    console.error("processSocialQueueAction failed", error);
+    redirect(`/admin/social-publishing?error=${encodeURIComponent(String((error as Error)?.message ?? "Failed to process social queue."))}`);
+  }
 }
 
 export async function retrySocialPostAction(formData: FormData) {
-  const supabase = await requireAdminClient();
-  const jobId = String(formData.get("jobId") ?? "").trim();
-  if (!jobId) {
-    throw new Error("Missing social job id.");
-  }
+  try {
+    const supabase = await requireAdminClient();
+    const jobId = String(formData.get("jobId") ?? "").trim();
+    if (!jobId) {
+      throw new Error("Missing social job id.");
+    }
 
-  await dispatchSocialJobById(supabase, jobId);
-  revalidateSocialPublishingPaths();
+    await dispatchSocialJobById(supabase, jobId);
+    revalidateSocialPublishingPaths();
+    redirect("/admin/social-publishing?success=job-retried");
+  } catch (error) {
+    console.error("retrySocialPostAction failed", error);
+    redirect(`/admin/social-publishing?error=${encodeURIComponent(String((error as Error)?.message ?? "Failed to retry social job."))}`);
+  }
 }
 
 export async function updateFanWallEntryStatusAction(formData: FormData) {

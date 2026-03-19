@@ -5,12 +5,24 @@ import { getArtists } from "@/lib/queries";
 import { syncArtistContentAction } from "@/modules/growth-engine/actions";
 import { getArtistsGrowthStatus } from "@/modules/artist-ingestion/service";
 
-export default async function AdminArtistsPage() {
+type Props = {
+  searchParams: Promise<{
+    error?: string;
+    success?: string;
+  }>;
+};
+
+export default async function AdminArtistsPage({ searchParams }: Props) {
   await requireAdminPage();
-  const [artists, growthStatus] = await Promise.all([getArtists(), getArtistsGrowthStatus()]);
+  const [artists, growthStatus, params] = await Promise.all([getArtists(), getArtistsGrowthStatus(), searchParams]);
 
   return (
     <AdminShell>
+      {params.error ? <div className="rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-100">{params.error}</div> : null}
+      {params.success ? (
+        <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm text-emerald-100">{params.success}</div>
+      ) : null}
+
       <div>
         <p className="text-xs uppercase tracking-[0.22em] text-gold">Artists Management</p>
         <h1 className="mt-2 font-display text-4xl text-white">Artists</h1>

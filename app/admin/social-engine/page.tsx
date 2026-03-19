@@ -9,12 +9,24 @@ import {
 import { requireGrowthPageAccess } from "@/modules/growth-engine/auth";
 import { getSocialEngineDashboardData } from "@/modules/social-engine/service";
 
-export default async function AdminSocialEnginePage() {
+type Props = {
+  searchParams: Promise<{
+    error?: string;
+    success?: string;
+  }>;
+};
+
+export default async function AdminSocialEnginePage({ searchParams }: Props) {
   const access = await requireGrowthPageAccess("admin");
-  const data = await getSocialEngineDashboardData();
+  const [data, params] = await Promise.all([getSocialEngineDashboardData(), searchParams]);
 
   return (
     <AdminShell>
+      {params.error ? <div className="rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-100">{params.error}</div> : null}
+      {params.success ? (
+        <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm text-emerald-100">{params.success}</div>
+      ) : null}
+
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.24em] text-gold">Autonomous Control</p>

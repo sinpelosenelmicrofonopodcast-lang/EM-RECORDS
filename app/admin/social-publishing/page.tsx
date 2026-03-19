@@ -9,6 +9,13 @@ import { requireAdminPage } from "@/lib/auth";
 import { getSocialPublishingEnvStatus } from "@/lib/social-publishing";
 import { getSocialPostJobsAdmin, getSocialPublishingSettings } from "@/lib/queries";
 
+type Props = {
+  searchParams: Promise<{
+    error?: string;
+    success?: string;
+  }>;
+};
+
 function statusClass(status: string): string {
   if (status === "sent") return "border-emerald-400/30 bg-emerald-400/10 text-emerald-200";
   if (status === "failed") return "border-red-400/30 bg-red-400/10 text-red-200";
@@ -17,13 +24,20 @@ function statusClass(status: string): string {
   return "border-white/15 bg-black/40 text-white/70";
 }
 
-export default async function AdminSocialPublishingPage() {
+export default async function AdminSocialPublishingPage({ searchParams }: Props) {
   await requireAdminPage();
-  const [settings, jobs] = await Promise.all([getSocialPublishingSettings(), getSocialPostJobsAdmin()]);
+  const [settings, jobs, params] = await Promise.all([getSocialPublishingSettings(), getSocialPostJobsAdmin(), searchParams]);
   const envStatus = getSocialPublishingEnvStatus();
 
   return (
     <AdminShell>
+      {params.error ? (
+        <div className="rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-100">{params.error}</div>
+      ) : null}
+      {params.success ? (
+        <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm text-emerald-100">{params.success}</div>
+      ) : null}
+
       <div>
         <p className="text-xs uppercase tracking-[0.22em] text-gold">Meta Publishing</p>
         <h1 className="mt-2 font-display text-4xl text-white">Social Publishing</h1>
