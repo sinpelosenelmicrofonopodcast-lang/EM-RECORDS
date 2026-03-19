@@ -962,6 +962,10 @@ export async function publishManualSocialPosts(service: ServiceClient, input: Ma
     throw new Error("Add a message or at least one link.");
   }
 
+  if (targets.includes("instagram") && !mediaUrl) {
+    throw new Error("Instagram requires a public image URL. Add media artwork or use a preset with cover art.");
+  }
+
   const payload: Omit<SocialJobInsert, "platform" | "triggerType"> = {
     contentType: "manual",
     contentId: null,
