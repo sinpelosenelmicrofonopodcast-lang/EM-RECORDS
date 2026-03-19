@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { getCurrentUserRoleSnapshot } from "@/lib/auth";
 import { hashEpkPassword } from "@/lib/epk";
 import { createClient } from "@/lib/supabase/server";
@@ -801,6 +801,7 @@ export async function upsertSocialPublishingSettingsAction(formData: FormData) {
     revalidateSocialPublishingPaths();
     redirect("/admin/social-publishing?success=settings-saved");
   } catch (error) {
+    unstable_rethrow(error);
     console.error("upsertSocialPublishingSettingsAction failed", error);
     redirect(`/admin/social-publishing?error=${encodeURIComponent(String((error as Error)?.message ?? "Failed to save social settings."))}`);
   }
@@ -835,6 +836,7 @@ export async function publishSocialPostAction(formData: FormData) {
     revalidateSocialPublishingPaths();
     redirect("/admin/social-publishing?success=post-created");
   } catch (error) {
+    unstable_rethrow(error);
     console.error("publishSocialPostAction failed", error);
     redirect(`/admin/social-publishing?error=${encodeURIComponent(String((error as Error)?.message ?? "Failed to create social post."))}`);
   }
@@ -847,6 +849,7 @@ export async function processSocialQueueAction() {
     revalidateSocialPublishingPaths();
     redirect("/admin/social-publishing?success=queue-processed");
   } catch (error) {
+    unstable_rethrow(error);
     console.error("processSocialQueueAction failed", error);
     redirect(`/admin/social-publishing?error=${encodeURIComponent(String((error as Error)?.message ?? "Failed to process social queue."))}`);
   }
@@ -864,6 +867,7 @@ export async function retrySocialPostAction(formData: FormData) {
     revalidateSocialPublishingPaths();
     redirect("/admin/social-publishing?success=job-retried");
   } catch (error) {
+    unstable_rethrow(error);
     console.error("retrySocialPostAction failed", error);
     redirect(`/admin/social-publishing?error=${encodeURIComponent(String((error as Error)?.message ?? "Failed to retry social job."))}`);
   }

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { createServiceClient } from "@/lib/supabase/service";
 import { hasGrowthAccess, requireGrowthPageAccess } from "@/modules/growth-engine/auth";
 import { runGrowthAutomation } from "@/modules/growth-engine/service";
@@ -89,6 +89,7 @@ export async function saveAutomationSettingsAction(formData: FormData) {
     revalidatePath("/admin/growth-engine");
     redirectWithMessage("/admin/social-engine", "success", "Automation settings saved.");
   } catch (error) {
+    unstable_rethrow(error);
     console.error("saveAutomationSettingsAction failed", error);
     redirectWithMessage("/admin/social-engine", "error", String((error as Error)?.message ?? "Failed to save automation settings."));
   }
@@ -115,6 +116,7 @@ export async function saveSocialAccountAction(formData: FormData) {
     revalidatePath("/admin/social-engine");
     redirectWithMessage("/admin/social-engine", "success", "Social account saved.");
   } catch (error) {
+    unstable_rethrow(error);
     console.error("saveSocialAccountAction failed", error);
     redirectWithMessage("/admin/social-engine", "error", String((error as Error)?.message ?? "Failed to save social account."));
   }
@@ -174,6 +176,7 @@ export async function generateQueueContentAction(formData: FormData) {
     revalidatePath("/admin/growth-engine");
     redirectWithMessage("/admin/social-engine", "success", "Social draft created.");
   } catch (error) {
+    unstable_rethrow(error);
     console.error("generateQueueContentAction failed", error);
     redirectWithMessage("/admin/social-engine", "error", String((error as Error)?.message ?? "Failed to create social draft."));
   }
@@ -196,6 +199,7 @@ export async function runGrowthAutomationAction() {
     revalidatePath("/admin/growth-engine");
     redirectWithMessage("/admin/growth-engine", "success", "Growth automation executed.");
   } catch (error) {
+    unstable_rethrow(error);
     console.error("runGrowthAutomationAction failed", error);
     redirectWithMessage("/admin/growth-engine", "error", String((error as Error)?.message ?? "Failed to run growth automation."));
   }
@@ -215,6 +219,7 @@ export async function syncArtistContentAction(formData: FormData) {
     revalidatePath("/admin/social-engine");
     redirectWithMessage("/admin/artists", "success", artistId ? "Artist sync completed." : "Artist sync completed for all artists.");
   } catch (error) {
+    unstable_rethrow(error);
     console.error("syncArtistContentAction failed", error);
     redirectWithMessage("/admin/artists", "error", String((error as Error)?.message ?? "Failed to sync artist data."));
   }
