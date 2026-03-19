@@ -44,6 +44,40 @@ function pillClass(active: boolean) {
     : "border-white/10 bg-black/25 text-white/65 hover:border-white/20 hover:text-white";
 }
 
+function getPostLogMessage(post?: Pick<SocialPostRecord, "publishLog"> | null) {
+  if (!post) return null;
+
+  for (const entry of post.publishLog) {
+    const error = typeof entry.error === "string" ? entry.error.trim() : "";
+    if (error) return error;
+  }
+
+  return null;
+}
+
+function formatPersistSuccessMessage(mode: "save_draft" | "schedule" | "post_now", post?: SocialPostRecord | null) {
+  if (mode === "schedule") return "Post programado correctamente.";
+  if (mode === "save_draft") return "Draft guardado.";
+
+  const status = String(post?.status ?? "published");
+  const reason = getPostLogMessage(post);
+
+  if (status === "failed" && reason) {
+    return `Post falló: ${reason}`;
+  }
+
+  if (status === "ready_for_manual" && reason) {
+    return `Post listo para manual: ${reason}`;
+  }
+
+  return `Post procesado con estado ${status}.`;
+}
+
+function formatManagerSuccessMessage(mode: "duplicate" | "repost", post?: SocialPostRecord | null) {
+  if (mode === "duplicate") return "Post duplicado como draft.";
+  return formatPersistSuccessMessage("post_now", post);
+}
+
 export function SocialMediaControlCenter({ initialData }: Props) {
   const router = useRouter();
   const [banner, setBanner] = useState<Banner>(null);
@@ -187,12 +221,7 @@ export function SocialMediaControlCenter({ initialData }: Props) {
 
       setBanner({
         tone: "success",
-        message:
-          mode === "post_now"
-            ? `Post procesado con estado ${String(payload.post?.status ?? "published")}.`
-            : mode === "schedule"
-              ? "Post programado correctamente."
-              : "Draft guardado."
+        message: formatPersistSuccessMessage(mode, payload.post ?? null)
       });
       setEditingPostId(String(payload.post?.id ?? editingPostId ?? ""));
       startTransition(() => router.refresh());
@@ -216,7 +245,7 @@ export function SocialMediaControlCenter({ initialData }: Props) {
 
       setBanner({
         tone: "success",
-        message: mode === "duplicate" ? "Post duplicado como draft." : `Repost ejecutado con estado ${String(payload.post?.status ?? "published")}.`
+        message: formatManagerSuccessMessage(mode, payload.post ?? null)
       });
       startTransition(() => router.refresh());
     } catch (error) {
@@ -601,6 +630,11 @@ export function SocialMediaControlCenter({ initialData }: Props) {
                   </div>
                   <h3 className="mt-3 text-xl font-semibold text-white">{post.title ?? "Untitled post"}</h3>
                   <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-white/72">{post.caption}</p>
+                  {getPostLogMessage(post) ? (
+                    <p className="mt-3 rounded-2xl border border-red-400/25 bg-red-500/10 px-3 py-2 text-sm text-red-100">
+                      {getPostLogMessage(post)}
+                    </p>
+                  ) : null}
                   {post.link ? (
                     <a href={post.link} target="_blank" rel="noreferrer" className="mt-3 inline-flex text-sm text-gold">
                       {post.link}

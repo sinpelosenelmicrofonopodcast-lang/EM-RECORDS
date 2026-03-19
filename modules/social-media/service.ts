@@ -544,7 +544,8 @@ function buildManualLogEntry(platform: SocialMediaPlatform): Record<string, unkn
 function resolvePublishStatus(results: SocialPostJob[], manualPlatforms: SocialMediaPlatform[]): SocialMediaPostStatus {
   const hasFailure = results.some((job) => job.status === "failed");
   if (hasFailure) return "failed";
-  if (manualPlatforms.length > 0) return "ready_for_manual";
+  const hasSkipped = results.some((job) => job.status === "skipped");
+  if (hasSkipped || manualPlatforms.length > 0) return "ready_for_manual";
   return "published";
 }
 
