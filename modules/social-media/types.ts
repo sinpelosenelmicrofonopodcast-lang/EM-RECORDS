@@ -47,7 +47,7 @@ export type SocialMediaDashboardData = {
   bestPostingWindows: number[];
   envStatus: {
     facebookPageIdConfigured: boolean;
-    pageAccessTokenConfigured: boolean;
+    systemUserTokenConfigured: boolean;
     instagramBusinessIdConfigured: boolean;
     facebookConfigured: boolean;
     instagramConfigured: boolean;

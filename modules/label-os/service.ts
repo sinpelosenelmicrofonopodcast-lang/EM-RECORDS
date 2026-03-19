@@ -173,7 +173,7 @@ export async function getLabelOsAuditChecks(service?: ServiceClient): Promise<La
     { label: "OPENAI_API_KEY", ok: envCheck(process.env.OPENAI_API_KEY) },
     { label: "SPOTIFY_CLIENT_ID", ok: envCheck(process.env.SPOTIFY_CLIENT_ID) },
     { label: "SPOTIFY_CLIENT_SECRET", ok: envCheck(process.env.SPOTIFY_CLIENT_SECRET) },
-    { label: "META_PAGE_ACCESS_TOKEN", ok: envCheck(process.env.META_PAGE_ACCESS_TOKEN ?? process.env.FACEBOOK_PAGE_ACCESS_TOKEN) },
+    { label: "META_SYSTEM_USER_TOKEN", ok: envCheck(process.env.META_SYSTEM_USER_TOKEN ?? process.env.FACEBOOK_SYSTEM_USER_TOKEN) },
     { label: "STRIPE_SECRET_KEY", ok: envCheck(process.env.STRIPE_SECRET_KEY) },
     { label: "STRIPE_WEBHOOK_SECRET", ok: envCheck(process.env.STRIPE_WEBHOOK_SECRET) },
     { label: "RESEND_API_KEY", ok: envCheck(process.env.RESEND_API_KEY) },

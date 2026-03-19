@@ -50,7 +50,7 @@ export default async function AdminSocialPublishingPage({ searchParams }: Props)
       <section className="grid gap-4 md:grid-cols-3">
         {[
           ["Facebook Page ID", envStatus.facebookPageIdConfigured],
-          ["Page Access Token", envStatus.pageAccessTokenConfigured],
+          ["System User Token", envStatus.systemUserTokenConfigured],
           ["Instagram Business ID", envStatus.instagramBusinessIdConfigured]
         ].map(([label, ready]) => (
           <article key={String(label)} className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">

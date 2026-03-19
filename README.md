@@ -71,9 +71,15 @@ Add these to `.env.local` and Vercel to enable Meta posting from `/admin/social-
 
 ```bash
 META_PAGE_ID=...
-META_PAGE_ACCESS_TOKEN=...
+META_SYSTEM_USER_TOKEN=...
 META_IG_BUSINESS_ACCOUNT_ID=...
 ```
+
+Architecture note:
+- Use only a permanent Meta System User Token
+- The app fetches `/me/accounts` before each publish request
+- It derives the Page Access Token dynamically and uses it immediately
+- It does not store Page Access Tokens
 
 Run migration:
 - [2026-03-14-social-publishing.sql](/Users/gabriel/em records llc/supabase/migrations/2026-03-14-social-publishing.sql)

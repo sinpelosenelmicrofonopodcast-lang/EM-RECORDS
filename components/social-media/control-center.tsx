@@ -462,7 +462,7 @@ export function SocialMediaControlCenter({ initialData }: Props) {
                 <p className="text-[11px] uppercase tracking-[0.22em] text-gold">4. Publish Engine</p>
                 <h2 className="mt-2 font-display text-3xl text-white">Draft, schedule o publish now</h2>
                 <p className="mt-3 text-sm text-white/65">
-                  Facebook e Instagram publican con page token. TikTok, X y YouTube quedan listos para operación manual cuando no hay API activa.
+                  Facebook e Instagram publican con page token dinámico derivado del system user token. TikTok, X y YouTube quedan listos para operación manual cuando no hay API activa.
                 </p>
               </div>
               <div className="rounded-[22px] border border-white/10 bg-black/30 px-4 py-3 text-xs uppercase tracking-[0.16em] text-white/55">

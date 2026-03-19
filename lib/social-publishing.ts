@@ -477,39 +477,105 @@ export async function getSocialPublishingSettingsRecord(service: ServiceClient):
 
 export function getSocialPublishingEnvStatus() {
   const facebookPageId = String(process.env.META_PAGE_ID ?? process.env.FACEBOOK_PAGE_ID ?? "").trim();
-  const pageAccessToken = String(process.env.META_PAGE_ACCESS_TOKEN ?? process.env.FACEBOOK_PAGE_ACCESS_TOKEN ?? "").trim();
+  const systemUserToken = String(process.env.META_SYSTEM_USER_TOKEN ?? process.env.FACEBOOK_SYSTEM_USER_TOKEN ?? "").trim();
   const instagramBusinessId = String(process.env.META_IG_BUSINESS_ACCOUNT_ID ?? process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID ?? "").trim();
 
   return {
     facebookPageIdConfigured: Boolean(facebookPageId),
-    pageAccessTokenConfigured: Boolean(pageAccessToken),
+    systemUserTokenConfigured: Boolean(systemUserToken),
     instagramBusinessIdConfigured: Boolean(instagramBusinessId),
-    facebookConfigured: Boolean(facebookPageId && pageAccessToken),
-    instagramConfigured: Boolean(facebookPageId && pageAccessToken && instagramBusinessId)
+    facebookConfigured: Boolean(facebookPageId && systemUserToken),
+    instagramConfigured: Boolean(facebookPageId && systemUserToken && instagramBusinessId)
   };
 }
 
 function getMetaConfig() {
   const facebookPageId = String(process.env.META_PAGE_ID ?? process.env.FACEBOOK_PAGE_ID ?? "").trim();
-  const pageAccessToken = String(process.env.META_PAGE_ACCESS_TOKEN ?? process.env.FACEBOOK_PAGE_ACCESS_TOKEN ?? "").trim();
+  const systemUserToken = String(process.env.META_SYSTEM_USER_TOKEN ?? process.env.FACEBOOK_SYSTEM_USER_TOKEN ?? "").trim();
   const instagramBusinessId = String(process.env.META_IG_BUSINESS_ACCOUNT_ID ?? process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID ?? "").trim();
 
   return {
     facebookPageId,
-    pageAccessToken,
+    systemUserToken,
     instagramBusinessId
+  };
+}
+
+async function resolvePageAccessToken() {
+  const config = getMetaConfig();
+  if (!config.facebookPageId || !config.systemUserToken) {
+    return {
+      ok: false as const,
+      skipped: true as const,
+      error: "Missing META_PAGE_ID or META_SYSTEM_USER_TOKEN."
+    };
+  }
+
+  const url = new URL(`https://graph.facebook.com/${GRAPH_API_VERSION}/me/accounts`);
+  url.searchParams.set("fields", "id,name,access_token");
+  url.searchParams.set("access_token", config.systemUserToken);
+
+  const response = await fetch(url.toString(), {
+    method: "GET",
+    headers: { "content-type": "application/json" },
+    cache: "no-store"
+  });
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    return {
+      ok: false as const,
+      error: String((payload as { error?: { message?: string } } | null)?.error?.message ?? `Meta /me/accounts failed (${response.status}).`),
+      response: payload
+    };
+  }
+
+  const accounts = Array.isArray((payload as { data?: unknown[] } | null)?.data) ? ((payload as { data: Array<Record<string, unknown>> }).data ?? []) : [];
+  const page = accounts.find((account) => String(account.id ?? "") === config.facebookPageId);
+  const pageAccessToken = page && typeof page.access_token === "string" ? page.access_token.trim() : "";
+
+  if (!page) {
+    return {
+      ok: false as const,
+      error: `Configured page ${config.facebookPageId} was not returned by /me/accounts.`,
+      response: payload
+    };
+  }
+
+  if (!pageAccessToken) {
+    return {
+      ok: false as const,
+      error: `Meta did not return an access token for page ${config.facebookPageId}.`,
+      response: payload
+    };
+  }
+
+  return {
+    ok: true as const,
+    pageAccessToken,
+    response: payload
   };
 }
 
 async function postToFacebookPage(job: SocialPostJob): Promise<PublishResult> {
   const config = getMetaConfig();
-  if (!config.facebookPageId || !config.pageAccessToken) {
-    return { ok: false, skipped: true, error: "Missing META_PAGE_ID or META_PAGE_ACCESS_TOKEN." };
+  if (!config.facebookPageId || !config.systemUserToken) {
+    return { ok: false, skipped: true, error: "Missing META_PAGE_ID or META_SYSTEM_USER_TOKEN." };
+  }
+
+  const tokenResult = await resolvePageAccessToken();
+  if (!tokenResult.ok) {
+    return {
+      ok: false,
+      skipped: tokenResult.skipped,
+      error: tokenResult.error,
+      response: tokenResult.response
+    };
   }
 
   const body = new URLSearchParams();
   body.set("message", job.message);
-  body.set("access_token", config.pageAccessToken);
+  body.set("access_token", tokenResult.pageAccessToken);
 
   if (job.primaryLinkUrl) {
     body.set("link", job.primaryLinkUrl);
@@ -539,18 +605,28 @@ async function postToFacebookPage(job: SocialPostJob): Promise<PublishResult> {
 
 async function postToInstagram(job: SocialPostJob): Promise<PublishResult> {
   const config = getMetaConfig();
-  if (!config.instagramBusinessId || !config.pageAccessToken) {
-    return { ok: false, skipped: true, error: "Missing META_IG_BUSINESS_ACCOUNT_ID or META_PAGE_ACCESS_TOKEN." };
+  if (!config.instagramBusinessId || !config.systemUserToken) {
+    return { ok: false, skipped: true, error: "Missing META_IG_BUSINESS_ACCOUNT_ID or META_SYSTEM_USER_TOKEN." };
   }
 
   if (!job.mediaUrl) {
     return { ok: false, skipped: true, error: "Instagram requires a public image URL." };
   }
 
+  const tokenResult = await resolvePageAccessToken();
+  if (!tokenResult.ok) {
+    return {
+      ok: false,
+      skipped: tokenResult.skipped,
+      error: tokenResult.error,
+      response: tokenResult.response
+    };
+  }
+
   const createBody = new URLSearchParams();
   createBody.set("image_url", job.mediaUrl);
   createBody.set("caption", job.message);
-  createBody.set("access_token", config.pageAccessToken);
+  createBody.set("access_token", tokenResult.pageAccessToken);
 
   const containerResponse = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${config.instagramBusinessId}/media`, {
     method: "POST",
@@ -574,7 +650,7 @@ async function postToInstagram(job: SocialPostJob): Promise<PublishResult> {
 
   const publishBody = new URLSearchParams();
   publishBody.set("creation_id", creationId);
-  publishBody.set("access_token", config.pageAccessToken);
+  publishBody.set("access_token", tokenResult.pageAccessToken);
 
   const publishResponse = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${config.instagramBusinessId}/media_publish`, {
     method: "POST",
