@@ -305,8 +305,10 @@ function mapSocialPostJob(row: any): SocialPostJob {
 }
 
 export const getArtists = cache(async (): Promise<Artist[]> => {
+  const allowMocks = process.env.NODE_ENV !== "production";
+
   if (!isSupabaseConfigured()) {
-    return mockArtists;
+    return allowMocks ? mockArtists : [];
   }
 
   try {
@@ -314,18 +316,20 @@ export const getArtists = cache(async (): Promise<Artist[]> => {
     const { data, error } = await supabase.from("artists").select("*").order("created_at", { ascending: false });
 
     if (error || !data) {
-      return mockArtists;
+      return allowMocks ? mockArtists : [];
     }
 
     return data.map(mapArtist);
   } catch {
-    return mockArtists;
+    return allowMocks ? mockArtists : [];
   }
 });
 
 export const getArtistBySlug = cache(async (slug: string): Promise<Artist | null> => {
+  const allowMocks = process.env.NODE_ENV !== "production";
+
   if (!isSupabaseConfigured()) {
-    return mockArtists.find((item) => item.slug === slug) ?? null;
+    return allowMocks ? mockArtists.find((item) => item.slug === slug) ?? null : null;
   }
 
   try {
@@ -333,12 +337,12 @@ export const getArtistBySlug = cache(async (slug: string): Promise<Artist | null
     const { data, error } = await supabase.from("artists").select("*").eq("slug", slug).maybeSingle();
 
     if (error || !data) {
-      return mockArtists.find((item) => item.slug === slug) ?? null;
+      return allowMocks ? mockArtists.find((item) => item.slug === slug) ?? null : null;
     }
 
     return mapArtist(data);
   } catch {
-    return mockArtists.find((item) => item.slug === slug) ?? null;
+    return allowMocks ? mockArtists.find((item) => item.slug === slug) ?? null : null;
   }
 });
 
@@ -974,20 +978,35 @@ export const getSiteAnalyticsAdmin = cache(async (): Promise<SiteAnalyticsSnapsh
 
 export const getDemoSubmissions = cache(async (): Promise<DemoSubmission[]> => {
   if (!isSupabaseConfigured()) {
-    return mockDemos;
+    return process.env.NODE_ENV !== "production" ? mockDemos : [];
   }
 
   try {
-    const supabase = await createServerSupabase();
-    const { data, error } = await supabase.from("demo_submissions").select("*").order("created_at", { ascending: false }).limit(50);
+    const service = createServiceClient();
+    const { data, error } = await service.from("demo_submissions").select("*").order("created_at", { ascending: false }).limit(50);
 
     if (error || !data) {
-      return mockDemos;
+      return process.env.NODE_ENV !== "production" ? mockDemos : [];
     }
 
-    return data.map(mapDemo);
+    return Promise.all(
+      data.map(async (row: any) => {
+        let fileUrl = String(row.file_url ?? "");
+        if (fileUrl.startsWith("storage://")) {
+          const pointer = fileUrl.slice("storage://".length);
+          const separator = pointer.indexOf("/");
+          if (separator > 0) {
+            const bucket = pointer.slice(0, separator);
+            const path = pointer.slice(separator + 1);
+            const { data: signed } = await service.storage.from(bucket).createSignedUrl(path, 600);
+            fileUrl = signed?.signedUrl ?? "";
+          }
+        }
+        return mapDemo({ ...row, file_url: fileUrl });
+      })
+    );
   } catch {
-    return mockDemos;
+    return process.env.NODE_ENV !== "production" ? mockDemos : [];
   }
 });
 
