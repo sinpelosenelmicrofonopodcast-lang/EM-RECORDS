@@ -58,7 +58,8 @@ export async function getCurrentUserRoleSnapshot(user?: User): Promise<UserRoleS
   const profileRole = profile?.role ? String(profile.role) : null;
   const profileIsAdmin = Boolean(profile?.is_admin);
   const globalRoles = (roleRows ?? []).map((row: any) => String(row.role));
-  const isAdmin = Boolean(resolvedUser.user_metadata?.role === "admin" || profileIsAdmin || globalRoles.includes("admin"));
+  const appRole = typeof resolvedUser.app_metadata?.role === "string" ? resolvedUser.app_metadata.role : null;
+  const isAdmin = Boolean(appRole === "admin" || profileIsAdmin || globalRoles.includes("admin"));
   const isStaff =
     isAdmin ||
     profileRole === "admin" ||
