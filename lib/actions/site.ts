@@ -158,16 +158,14 @@ export async function submitDemoAction(formData: FormData) {
       return;
     }
 
-    const {
-      data: { publicUrl }
-    } = supabase.storage.from("demo-submissions").getPublicUrl(path);
+    const storagePointer = `storage://demo-submissions/${path}`;
 
     const { error } = await supabase.from("demo_submissions").insert({
       artist_name: artistName,
       email,
       track_title: trackTitle,
       message,
-      file_url: publicUrl,
+      file_url: storagePointer,
       status: "pending"
     });
 
