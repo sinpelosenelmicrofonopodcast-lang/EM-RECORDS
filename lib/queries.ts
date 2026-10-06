@@ -312,7 +312,7 @@ export const getArtists = cache(async (): Promise<Artist[]> => {
   }
 
   try {
-    const supabase = await createServerSupabase();
+    const supabase = createServiceClient();
     const { data, error } = await supabase.from("artists").select("*").order("created_at", { ascending: false });
 
     if (error || !data) {
@@ -333,7 +333,7 @@ export const getArtistBySlug = cache(async (slug: string): Promise<Artist | null
   }
 
   try {
-    const supabase = await createServerSupabase();
+    const supabase = createServiceClient();
     const { data, error } = await supabase.from("artists").select("*").eq("slug", slug).maybeSingle();
 
     if (error || !data) {
