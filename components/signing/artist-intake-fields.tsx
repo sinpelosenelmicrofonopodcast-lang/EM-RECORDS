@@ -18,6 +18,10 @@ type ArtistIntakeFieldValues = Partial<{
   managerName: string | null;
   managerEmail: string | null;
   managerPhone: string | null;
+  guardianName: string | null;
+  guardianEmail: string | null;
+  guardianPhone: string | null;
+  guardianRelationship: string | null;
   proAffiliation: string | null;
   ipiNumber: string | null;
   notes: string | null;
@@ -180,6 +184,19 @@ export function ArtistIntakeFields({ values, emailFieldName = "email", emailLabe
             <span className={hintClass}>IPI number</span>
             <input name="ipi_number" defaultValue={values?.ipiNumber ?? ""} className={inputClass} />
           </label>
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <p className="text-xs uppercase tracking-[0.18em] text-gold">Tutor legal si eres menor</p>
+          <p className="mt-1 text-sm text-white/60">Obligatorio para artistas menores de 18 anos.</p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <label className={labelClass}><span className={hintClass}>Nombre del tutor</span><input name="guardian_name" defaultValue={values?.guardianName ?? ""} className={inputClass} /></label>
+          <label className={labelClass}><span className={hintClass}>Relacion</span><input name="guardian_relationship" defaultValue={values?.guardianRelationship ?? ""} className={inputClass} /></label>
+          <label className={labelClass}><span className={hintClass}>Correo del tutor</span><input name="guardian_email" type="email" defaultValue={values?.guardianEmail ?? ""} className={inputClass} /></label>
+          <label className={labelClass}><span className={hintClass}>Telefono del tutor</span><input name="guardian_phone" type="tel" defaultValue={values?.guardianPhone ?? ""} className={inputClass} /></label>
         </div>
       </section>
 

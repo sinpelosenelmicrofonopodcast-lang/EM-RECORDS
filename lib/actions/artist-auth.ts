@@ -1,5 +1,7 @@
 "use server";
 
+import { createHash } from "node:crypto";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -14,6 +16,11 @@ function toMessage(value: unknown, fallback: string) {
 export async function signUpArtistAction(formData: FormData) {
   if (!isSupabaseConfigured()) {
     redirect("/artist/signup?error=Supabase%20no%20esta%20configurado");
+  }
+
+  const acceptedCertification = String(formData.get("accept_profile_certification") ?? "") === "on";
+  if (!acceptedCertification) {
+    redirect("/artist/signup?error=Debes%20certificar%20la%20informacion%20y%20aceptar%20el%20manejo%20de%20datos");
   }
 
   const parsed = parseArtistIntakeFormData(formData, { emailField: "email" });
@@ -67,6 +74,20 @@ export async function signUpArtistAction(formData: FormData) {
         ...intake,
         assignedTo: userId
       });
+
+      const { data: artistProfile } = await service.from("artist_profiles").select("id").eq("user_id", userId).maybeSingle();
+      const h = await headers();
+      const rawIp = h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip")?.trim() || "";
+      const ipHash = rawIp ? createHash("sha256").update("em-records-consent-v1:" + rawIp).digest("hex") : null;
+      await service.from("artist_consents").upsert({
+        user_id: userId,
+        artist_profile_id: artistProfile?.id ?? null,
+        consent_type: "artist_profile_certification",
+        document_version: "v1",
+        ip_hash: ipHash,
+        user_agent: h.get("user-agent") ?? null,
+        payload: { certified_accurate: true, privacy_acknowledged: true, rights_disclosure_acknowledged: true }
+      }, { onConflict: "user_id,consent_type,document_version" });
     } catch (profileError: any) {
       redirect(
         `/artist/signup?error=${encodeURIComponent(

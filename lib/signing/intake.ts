@@ -26,6 +26,10 @@ export type ArtistIntakeInput = {
   managerName: string | null;
   managerEmail: string | null;
   managerPhone: string | null;
+  guardianName: string | null;
+  guardianEmail: string | null;
+  guardianPhone: string | null;
+  guardianRelationship: string | null;
   proAffiliation: string;
   ipiNumber: string | null;
   notes: string | null;
@@ -104,6 +108,10 @@ const artistIntakeSchema = z
       message: "El correo del manager no es valido."
     }),
     managerPhone: optionalTrimmedString(),
+    guardianName: optionalTrimmedString(),
+    guardianEmail: optionalTrimmedString().refine((value) => !value || isValidEmail(value), { message: "El correo del tutor no es valido." }),
+    guardianPhone: optionalTrimmedString(),
+    guardianRelationship: optionalTrimmedString(),
     proAffiliation: z.string().trim().default("none"),
     ipiNumber: optionalTrimmedString(),
     notes: optionalTrimmedString(),
@@ -119,11 +127,16 @@ const artistIntakeSchema = z
     }
 
     if (value.managerName && !value.managerEmail && !value.managerPhone) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["managerEmail"],
-        message: "Si hay manager, agrega un correo o telefono de contacto."
-      });
+      ctx.addIssue({ code: "custom", path: ["managerEmail"], message: "Si hay manager, agrega un correo o telefono de contacto." });
+    }
+
+    const dob = new Date(value.dateOfBirth + "T12:00:00Z");
+    const today = new Date();
+    let age = today.getUTCFullYear() - dob.getUTCFullYear();
+    const beforeBirthday = today.getUTCMonth() < dob.getUTCMonth() || (today.getUTCMonth() === dob.getUTCMonth() && today.getUTCDate() < dob.getUTCDate());
+    if (beforeBirthday) age -= 1;
+    if (age < 18 && (!value.guardianName || (!value.guardianEmail && !value.guardianPhone) || !value.guardianRelationship)) {
+      ctx.addIssue({ code: "custom", path: ["guardianName"], message: "Los artistas menores de 18 anos deben incluir tutor legal, relacion y un medio de contacto." });
     }
   });
 
@@ -198,6 +211,10 @@ export function parseArtistIntakeFormData(
     managerName: asString(formData, "manager_name") || null,
     managerEmail: asString(formData, "manager_email") || null,
     managerPhone: asString(formData, "manager_phone") || null,
+    guardianName: asString(formData, "guardian_name") || null,
+    guardianEmail: asString(formData, "guardian_email") || null,
+    guardianPhone: asString(formData, "guardian_phone") || null,
+    guardianRelationship: asString(formData, "guardian_relationship") || null,
     proAffiliation: asString(formData, "pro_affiliation") || "none",
     ipiNumber: asString(formData, "ipi_number") || null,
     notes: asString(formData, "notes") || null,
@@ -243,6 +260,10 @@ export function buildArtistIntakeDbPayload(intake: ArtistIntakeInput) {
     manager_name: intake.managerName,
     manager_email: intake.managerEmail,
     manager_phone: intake.managerPhone,
+    guardian_name: intake.guardianName,
+    guardian_email: intake.guardianEmail,
+    guardian_phone: intake.guardianPhone,
+    guardian_relationship: intake.guardianRelationship,
     pro_affiliation: intake.proAffiliation,
     ipi_number: intake.ipiNumber,
     notes: intake.notes,
@@ -322,6 +343,10 @@ export async function upsertArtistIntakeLead(params: UpsertArtistLeadParams): Pr
     manager_name: nullIfBlank(params.managerName),
     manager_email: nullIfBlank(params.managerEmail),
     manager_phone: nullIfBlank(params.managerPhone),
+    guardian_name: nullIfBlank(params.guardianName),
+    guardian_email: nullIfBlank(params.guardianEmail),
+    guardian_phone: nullIfBlank(params.guardianPhone),
+    guardian_relationship: nullIfBlank(params.guardianRelationship),
     pro_affiliation: params.proAffiliation || "none",
     ipi_number: nullIfBlank(params.ipiNumber),
     social_links: normalizedSocials,

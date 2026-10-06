@@ -1,6 +1,8 @@
 import { ActiveNavLink } from "@/components/shared/active-nav-link";
 
 const sections = [
+  ["readiness", "Artist Readiness"],
+  ["central-texas", "Central Texas"],
   ["catalog", "Catalog"],
   ["launch", "Launch Center"],
   ["media-kit", "Media Kit"],

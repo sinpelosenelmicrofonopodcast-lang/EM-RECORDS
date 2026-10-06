@@ -48,6 +48,11 @@ export default async function ArtistSignupPage({ searchParams }: Props) {
 
           <ArtistIntakeFields emailFieldName="email" emailLabel="Correo personal / acceso" />
 
+          <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-black/40 p-4 text-sm text-white/70">
+            <input type="checkbox" name="accept_profile_certification" required className="mt-1" />
+            <span>Certifico que la informacion suministrada es correcta, revelare material de terceros o derechos en conflicto y acepto que EM Records conserve esta informacion para onboarding, contratos, derechos y administracion del programa.</span>
+          </label>
+
           <button type="submit" className="w-full rounded-full border border-gold bg-gold px-6 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-black">
             Crear cuenta y perfil
           </button>
