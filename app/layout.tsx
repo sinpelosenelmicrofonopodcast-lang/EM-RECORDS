@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
-import { SiteHeader } from "@/components/shared/site-header";
-import { SiteFooter } from "@/components/shared/site-footer";
+import "./product-refresh.css";
+import { SiteHeaderV2 } from "@/components/shared/site-header-v2";
+import { SiteFooterV2 } from "@/components/shared/site-footer-v2";
 import { TermsConsentModal } from "@/components/shared/terms-consent-modal";
 import { getSiteLanguage } from "@/lib/i18n/server";
 import { getSocialLinks } from "@/lib/queries";
@@ -37,73 +38,4 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
-    nocache: false,
-    googleBot: {
-      index: true,
-      follow: true,
-      noimageindex: false,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1
-    }
-  },
-  openGraph: {
-    title: "EM Records LLC",
-    description: "Don\'t chase the wave. Create it.",
-    url: absoluteUrl("/"),
-    siteName: "EM Records LLC",
-    images: [
-      {
-        url: absoluteUrl("/og-default.jpg"),
-        width: 1200,
-        height: 630,
-        alt: "EM Records LLC"
-      }
-    ],
-    locale: "es_US",
-    type: "website"
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "EM Records LLC",
-    description: "Dark modern latin urban label with international vision.",
-    images: [absoluteUrl("/og-default.jpg")]
-  }
-};
-
-export default async function RootLayout({
-  children
-}: Readonly<{
-  children: ReactNode;
-}>) {
-  const [lang, socialLinks] = await Promise.all([getSiteLanguage(), getSocialLinks()]);
-  const orgSchema = {
-    "@context": "https://schema.org",
-    "@type": "MusicGroup",
-    name: "EM Records LLC",
-    url: absoluteUrl("/"),
-    slogan: "Don't chase the wave. Create it.",
-    image: absoluteUrl("/images/em-logo-og.svg"),
-    sameAs: socialLinks.map((item) => item.url)
-  };
-  const websiteSchema = {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    name: "EM Records LLC",
-    url: absoluteUrl("/"),
-    inLanguage: lang === "es" ? "es-US" : "en-US"
-  };
-
-  return (
-    <html lang={lang}>
-      <body className="font-sans antialiased">
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLd(orgSchema) }} />
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLd(websiteSchema) }} />
-        <TermsConsentModal />
-        <SiteHeader />
-        <main>{children}</main>
-        <SiteFooter />
-      </body>
-    </html>
-  );
-}
+    nocach¶»§q«^

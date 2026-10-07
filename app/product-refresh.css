@@ -1,0 +1,6 @@
+.em-hero-glow{background:radial-gradient(circle at 72% 25%,rgba(198,168,91,.14),transparent 34%),linear-gradient(110deg,rgba(255,255,255,.02),transparent 40%)}
+.em-editorial-card{border:1px solid rgba(255,255,255,.09);background:linear-gradient(150deg,rgba(255,255,255,.035),rgba(255,255,255,.008));transition:border-color .25s ease,transform .25s ease,background .25s ease}
+.em-editorial-card:hover{border-color:rgba(198,168,91,.32);background:linear-gradient(150deg,rgba(198,168,91,.055),rgba(255,255,255,.01));transform:translateY(-2px)}
+.admin-rail{border:1px solid rgba(255,255,255,.08);background:#080809;box-shadow:0 18px 60px rgba(0,0,0,.28)}
+.admin-surface{border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.018)}
+@media(min-width:1280px){.app-shell{max-width:96rem}}
