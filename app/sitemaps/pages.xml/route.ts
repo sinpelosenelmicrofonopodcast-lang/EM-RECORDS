@@ -12,6 +12,7 @@ export async function GET() {
     "",
     "/artists",
     "/music",
+    "/beats",
     "/videos",
     "/events",
     "/press",

@@ -15,6 +15,10 @@ const PRICE_COLUMN: Record<string, string> = {
 };
 
 export async function POST(request: Request) {
+  if (process.env.PAYPAL_BEAT_CHECKOUT_ENABLED !== "true") {
+    return NextResponse.redirect(absoluteUrl("/beats?checkout=inactive"), 303);
+  }
+
   if (!isPayPalConfigured()) {
     return NextResponse.redirect(absoluteUrl("/?error=paypal_config"), 303);
   }

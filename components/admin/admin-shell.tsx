@@ -18,6 +18,7 @@ const nav = [
   { href: "/admin/analytics", label: "Analytics" },
   { href: "/admin/social-links", label: "Social Links" },
   { href: "/admin/booking-inquiries", label: "Booking Inquiries" },
+  { href: "/admin/beat-requests", label: "Beat Requests" },
   { href: "/admin/fan-wall", label: "Fan Wall" },
   { href: "/admin/demos", label: "Demos" },
   { href: "/admin/next-up", label: "Killeen Next Up" },

@@ -9,6 +9,7 @@ export async function SiteHeader() {
   const navItems = [
     { href: "/artists", label: lang === "es" ? "Artistas" : "Artists" },
     { href: "/music", label: lang === "es" ? "Música" : "Music" },
+    { href: "/beats", label: "Beats" },
     { href: "/videos", label: lang === "es" ? "Videos" : "Videos" },
     { href: "/events", label: lang === "es" ? "Eventos" : "Events" },
     { href: "/press", label: lang === "es" ? "Prensa" : "Press" },
