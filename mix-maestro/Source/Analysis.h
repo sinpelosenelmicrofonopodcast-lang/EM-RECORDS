@@ -9,7 +9,7 @@ struct Summary {
  mm::Level input,output;
  std::array<float,64> spectrum{},bands{};
  double rate=48000,seconds=0,dominant=0;
- std::uint64_t fftFrames=0,dropped=0;
+ std::uint64_t fftFrames=0,dropped=0;unsigned epoch=0;
  juce::String events,name;
 };
 struct Frame {float l=0,r=0,ol=0,orr=0;int ch=2;double rate=48000;unsigned epoch=0;};
@@ -74,7 +74,7 @@ private:
    if(pending.existsAsFile())analyzeFile(pending);
    int a,b,c,d;fifo.prepareToRead(8192,a,b,c,d);
    auto consume=[&](int start,int n){for(int i=0;i<n;++i){const auto& f=queue[size_t(start+i)];
-    if(epoch!=f.epoch||current.rate!=f.rate){epoch=f.epoch;current=Summary{};current.rate=f.rate;section=mm::Level{};windows=0;spec.reset();epochDropped=dropped.load();}
+    if(epoch!=f.epoch||current.rate!=f.rate){epoch=f.epoch;current=Summary{};current.rate=f.rate;current.epoch=f.epoch;section=mm::Level{};windows=0;spec.reset();epochDropped=dropped.load();}
     if(freeze.load())continue;
     current.input.push(f.l,f.r,f.ch);current.output.push(f.ol,f.orr,f.ch);section.push(f.l,f.r,f.ch);spec.push(f.l,f.r,f.ch,current);
     current.seconds=double(current.input.frames)/current.rate;
