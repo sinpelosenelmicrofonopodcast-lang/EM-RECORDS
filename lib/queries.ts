@@ -133,6 +133,8 @@ function mapEvent(row: any): EventItem {
     startsAt: row.starts_at,
     ticketUrl: row.ticket_url,
     stripePriceId: row.stripe_price_id,
+    ticketPriceCents: row.ticket_price_cents == null ? null : Number(row.ticket_price_cents),
+    ticketCurrency: String(row.ticket_currency ?? "USD").toUpperCase(),
     sponsors: row.sponsors ?? [],
     status: row.status
   };
