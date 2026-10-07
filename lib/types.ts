@@ -121,7 +121,7 @@ export type EventItem = {
   ticketUrl?: string;
   stripePriceId?: string;
   ticketPriceCents?: number | null;
-  ticketCurrency: string;
+  ticketCurrency?: string;
   sponsors: string[];
   status: "upcoming" | "sold_out" | "completed";
 };
