@@ -98,8 +98,8 @@ export default async function EventsPage() {
                     className="rounded-full border border-gold bg-gold px-6 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-black"
                   >
                     {lang === "es"
-                      ? `Comprar con PayPal · ${new Intl.NumberFormat("en-US", { style: "currency", currency: event.ticketCurrency }).format(event.ticketPriceCents / 100)}`
-                      : `Buy with PayPal · ${new Intl.NumberFormat("en-US", { style: "currency", currency: event.ticketCurrency }).format(event.ticketPriceCents / 100)}`}
+                      ? `Comprar con PayPal · ${new Intl.NumberFormat("en-US", { style: "currency", currency: event.ticketCurrency ?? "USD" }).format(event.ticketPriceCents / 100)}`
+                      : `Buy with PayPal · ${new Intl.NumberFormat("en-US", { style: "currency", currency: event.ticketCurrency ?? "USD" }).format(event.ticketPriceCents / 100)}`}
                   </button>
                 </form>
               ) : null}
