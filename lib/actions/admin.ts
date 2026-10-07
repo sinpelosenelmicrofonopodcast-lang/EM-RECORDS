@@ -263,16 +263,6 @@ export async function upsertReleaseAction(formData: FormData) {
   const titleInput = String(formData.get("title") ?? "").trim();
   const slugInput = slugifyText(String(formData.get("slug") ?? ""));
   const formatInput = String(formData.get("format") ?? "Single").trim();
-  const spotifyUrlInput = String(formData.get("spotifyUrl") ?? "").trim();
-  const appleMusicUrlInput = String(formData.get("appleMusicUrl") ?? "").trim();
-  const youtubeUrlInput = String(formData.get("youtubeUrl") ?? "").trim();
-  const spotifyArtistIdInput = String(formData.get("spotifyArtistId") ?? "").trim();
-  const appleMusicArtistIdInput = String(formData.get("appleMusicArtistId") ?? "").trim();
-  const youtubeChannelIdInput = String(formData.get("youtubeChannelId") ?? "").trim();
-  const catalogSyncEnabledInput = String(formData.get("catalogSyncEnabled") ?? "") === "on";
-  const parsedSpotifyArtistId = spotifyArtistIdInput || spotifyUrlInput.match(/spotify\.com\/artist\/([a-zA-Z0-9]+)/i)?.[1] || null;
-  const parsedAppleArtistId = appleMusicArtistIdInput || appleMusicUrlInput.match(/\/artist\/[^/]+\/(\d+)/i)?.[1] || null;
-  const parsedYouTubeChannelId = youtubeChannelIdInput || youtubeUrlInput.match(/youtube\.com\/channel\/([a-zA-Z0-9_-]+)/i)?.[1] || null;
   const spotifyEmbedInput = String(formData.get("spotifyEmbed") ?? "").trim();
   const appleEmbedInput = String(formData.get("appleEmbed") ?? "").trim();
   const youtubeEmbedInput = String(formData.get("youtubeEmbed") ?? "").trim();
@@ -907,4 +897,47 @@ export async function retrySocialPostAction(formData: FormData) {
   }
 }
 
-export async functio
+export async function updateFanWallEntryStatusAction(formData: FormData) {
+  const supabase = await requireAdminClient();
+  const id = String(formData.get("id") ?? "").trim();
+  const status = String(formData.get("status") ?? "").trim();
+  const isVerified = String(formData.get("isVerified") ?? "") === "on";
+
+  if (!id) {
+    throw new Error("Missing fan wall entry id.");
+  }
+
+  if (!["pending", "approved", "rejected"].includes(status)) {
+    throw new Error("Invalid fan wall status.");
+  }
+
+  let payload: Record<string, unknown> = { status, is_verified: isVerified };
+  let { data, error } = await supabase.from("fan_wall_entries").update(payload).eq("id", id).select("artist_slug").maybeSingle();
+
+  if (error && String(error.message).includes("is_verified")) {
+    payload = { status };
+    ({ data, error } = await supabase.from("fan_wall_entries").update(payload).eq("id", id).select("artist_slug").maybeSingle());
+  }
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const artistSlug = data?.artist_slug ? String(data.artist_slug) : "";
+  if (artistSlug) {
+    revalidatePath(`/artists/${artistSlug}`);
+  }
+  revalidatePath("/admin/fan-wall");
+}
+
+export async function updateBookingInquiryStatusAction(formData: FormData) {
+  const supabase = await requireAdminClient();
+  const id = String(formData.get("id") ?? "").trim();
+  const status = String(formData.get("status") ?? "").trim();
+  const allowed = ["new", "in_review", "negotiating", "confirmed", "done", "declined"];
+  if (!id) throw new Error("Missing booking request id.");
+  if (!allowed.includes(status)) throw new Error("Invalid booking request status.");
+  const { error } = await supabase.from("booking_requests").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/inbox");
+}
