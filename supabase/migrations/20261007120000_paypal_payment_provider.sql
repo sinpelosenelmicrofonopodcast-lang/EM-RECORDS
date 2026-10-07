@@ -111,3 +111,14 @@ create unique index if not exists paypal_active_exclusive_beat_session_key
   where kind='beat'
     and lower(coalesce(license_type,''))='exclusive'
     and status in ('created','approved','captured');
+
+
+drop policy if exists "paypal sessions deny client access"
+on public.paypal_payment_sessions;
+
+create policy "paypal sessions deny client access"
+on public.paypal_payment_sessions
+for all
+to anon, authenticated
+using (false)
+with check (false);
