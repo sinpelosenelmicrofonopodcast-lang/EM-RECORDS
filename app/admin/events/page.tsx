@@ -26,7 +26,8 @@ export default async function AdminEventsPage() {
           <option value="sold_out">sold_out</option>
           <option value="completed">completed</option>
         </select>
-        <input name="stripePriceId" placeholder="Stripe price_id" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
+        <input type="number" min="0" step="0.01" name="ticketPrice" placeholder="Ticket price (e.g. 25.00)" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
+        <input name="ticketCurrency" defaultValue="USD" maxLength={3} placeholder="Currency (USD)" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm uppercase text-white outline-none focus:border-gold" />
         <input name="ticketUrl" placeholder="External ticket URL" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
         <input name="sponsors" placeholder="Sponsors (comma separated)" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold md:col-span-2" />
         <button type="submit" className="rounded-full border border-gold bg-gold px-6 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-black md:col-span-2 md:justify-self-start">
