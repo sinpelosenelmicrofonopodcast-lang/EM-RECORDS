@@ -83,7 +83,7 @@ Editor::Editor(Processor& proc):AudioProcessorEditor(proc),p(proc){
  notes.setMultiLine(true);notes.setReadOnly(true);notes.setColour(juce::TextEditor::backgroundColourId,juce::Colour(0xff182230));notes.setColour(juce::TextEditor::textColourId,juce::Colour(0xffd7e2ef));addAndMakeVisible(notes);
  const char* names[]={"SUB","CUERPO","MEDIOS","PRESENCIA","AIRE"};for(int i=0;i<5;++i){auto id="eq"+juce::String(i);addSlider((id+"f").toRawUTF8(),names[i]," Hz");addSlider((id+"g").toRawUTF8(),"Ganancia"," dB");addSlider((id+"q").toRawUTF8(),"Q");}
  addSlider("threshold","Threshold"," dB");addSlider("ratio","Ratio",":1");addSlider("attack","Attack"," ms");addSlider("release","Release"," ms");addSlider("knee","Knee"," dB");addSlider("makeup","Makeup"," dB");addSlider("sc","HPF detector"," Hz");addSlider("gain","Salida"," dB");addSlider("mix","Wet"," %");
- setSize(1120,860);startTimerHz(8);
+ notes.setText("Reproduce una seccion para medir. EQ y COMP empiezan apagados. Carga una referencia o captura A para comparar.",false);setSize(1120,860);startTimerHz(8);
 }
 void Editor::resized(){
  track.setBounds(700,24,200,28);role.setBounds(920,24,180,28);reset.setBounds(20,67,135,28);capture.setBounds(165,67,115,28);load.setBounds(290,67,145,28);match.setBounds(445,67,125,28);report.setBounds(580,67,160,28);freeze.setBounds(755,67,115,28);mono.setBounds(880,67,90,28);bypass.setBounds(980,67,130,28);
@@ -92,7 +92,7 @@ void Editor::resized(){
  for(int i=15;i<24;++i){int j=i-15,x=j<7?785:20,y=j<7?460+j*42:708+(j-7)*55;int width=j<7?315:735;labels[size_t(i)]->setBounds(x,y,width,17);sliders[size_t(i)]->setBounds(x,y+16,width,26);}
 }
 juce::String Editor::recommendations(const Summary& s,const Summary& r){
- juce::String text="INGENIERO LOCAL — datos medidos / candidatos\n";
+ juce::String text="INGENIERO LOCAL - datos medidos / candidatos\n";
  if(s.input.frames==0||s.input.rms()<1e-8)return text+"Reproduce la seccion. Selecciona el tipo de pista y conserva el mismo pasaje para A/B.";
  if(s.input.nearFull>0)text+="1. Entrada: "+juce::String(juce::int64(s.input.nearFull))+" muestras cerca de full scale. Revisa fuente y picos; bajar salida no repara clipping previo.\n";
  if(s.output.peak>1)text+="Salida supera 0 dBFS. Baja ganancia/makeup antes de exportar.\n";
@@ -102,7 +102,7 @@ juce::String Editor::recommendations(const Summary& s,const Summary& r){
  double total=0;for(float v:s.spectrum)total+=v;
  if(total>1e-18){double low=0,bright=0;for(int i=0;i<64;++i){double hz=20*std::pow(1000.0,(i+0.5)/64);if(hz<80)low+=s.spectrum[size_t(i)];if(hz>5000&&hz<10000)bright+=s.spectrum[size_t(i)];}
   if(low/total>0.4)text+="CANDIDATO: mas del 40% de energia espectral esta bajo 80 Hz. Escucha si es bajo util o exceso; evita recortar por costumbre.\n";
-  if(bright/total>0.25)text+="CANDIDATO: mucha energia 5–10 kHz. Comprueba aspereza/sibilancia en contexto; puede ser percusion legitima.\n";
+  if(bright/total>0.25)text+="CANDIDATO: mucha energia 5-10 kHz. Comprueba aspereza/sibilancia en contexto; puede ser percusion legitima.\n";
  }
  if(s.dominant>0)text+="Pico del ultimo bloque FFT: "+juce::String(s.dominant,0)+" Hz. Puede ser una nota legitima; no es una resonancia confirmada.\n";
  if(role.getSelectedId()==2)text+="Voz: confirma articulacion y sibilancia en contexto. EQ estatica solo para exceso persistente.\n";
@@ -112,11 +112,11 @@ juce::String Editor::recommendations(const Summary& s,const Summary& r){
  if(s.dropped>0)text+="Analisis omitio "+juce::String(juce::int64(s.dropped))+" muestras por carga; reinicia seccion al terminar la referencia.\n";
  int others=0;for(const auto& item:Analyzer::inventory())if(item.first!=p.analyzer.identity&&item.second.input.frames>0)++others;
  if(others>0)text+="Sesion: "+juce::String(others)+" otras instancias medidas en este proceso. Informe incluye inventario; no prueba masking ni alineacion.\n";
- text+="Punto inicial COMP: ratio 3:1, attack 20 ms, release 120 ms; ajusta threshold para 2–4 dB GR si necesitas nivelar.\nNo se aplica EQ automaticamente. Comprueba bypass al mismo volumen.";return text;
+ text+="Punto inicial COMP: ratio 3:1, attack 20 ms, release 120 ms; ajusta threshold para 2-4 dB GR si necesitas nivelar.\nNo se aplica EQ automaticamente. Comprueba bypass al mismo volumen.";return text;
 }
 void Editor::timerCallback(){auto s=p.analyzer.snapshot(),r=p.analyzer.reference();notes.setText(recommendations(s,r),false);repaint();}
 void Editor::paint(juce::Graphics& g){
- g.fillAll(juce::Colour(0xff101721));g.setColour(juce::Colour(0xff48e0b7));g.setFont(28.f);g.drawText("MIX MAESTRO",20,17,360,40,juce::Justification::centredLeft);g.setColour(juce::Colour(0xff8296ad));g.setFont(13.f);g.drawText("0.2  /  ANALYZE • SHAPE • COMPARE",335,22,350,30,juce::Justification::centredLeft);
+ g.fillAll(juce::Colour(0xff101721));g.setColour(juce::Colour(0xff48e0b7));g.setFont(28.f);g.drawText("MIX MAESTRO",20,17,360,40,juce::Justification::centredLeft);g.setColour(juce::Colour(0xff8296ad));g.setFont(13.f);g.drawText("0.2  /  ANALYZE | SHAPE | COMPARE",335,22,350,30,juce::Justification::centredLeft);
  auto s=p.analyzer.snapshot(),ref=p.analyzer.reference();g.setColour(juce::Colours::white);g.setFont(15.f);
  juce::String metrics="IN "+juce::String(mm::db(s.input.peak),1)+" dBFS  |  OUT "+juce::String(mm::db(s.output.peak),1)+" dBFS  |  RMS "+juce::String(mm::db(s.input.rms()),1)+" dBFS  |  CREST "+juce::String(mm::db(s.input.peak)-mm::db(s.input.rms()),1)+" dB  |  GR "+juce::String(p.reduction.load(),1)+" dB";
  g.drawText(metrics,20,110,1080,25,juce::Justification::centredLeft);g.setFont(13.f);g.drawText("Seccion "+juce::String(s.seconds,1)+"s   L/R "+juce::String(s.input.correlation(),2)+"   Mono "+juce::String(s.input.monoDelta(),1)+" dB   FFT 4096 / energia relativa",20,140,1000,25,juce::Justification::centredLeft);
