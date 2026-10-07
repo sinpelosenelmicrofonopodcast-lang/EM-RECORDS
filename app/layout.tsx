@@ -13,15 +13,13 @@ export const metadata: Metadata = {
   metadataBase: new URL(getSiteOrigin()),
   applicationName: "EM Records LLC",
   title: {
-    default: "EM Records LLC | Don\'t chase the wave. Create it.",
+    default: "EM Records LLC | Don't chase the wave. Create it.",
     template: "%s | EM Records LLC"
   },
   description:
-    "EM Records LLC es una disquera urbana latina moderna con visiÃ³n internacional: artistas, lanzamientos, eventos, publishing y licensing.",
-  keywords: ["EM Records", "latin urban label", "reggaeton", "trap latino", "music publishing", "distribution"],
-  alternates: {
-    canonical: absoluteUrl("/")
-  },
+    "EM Records LLC is an independent label, music production and publishing operation developing artists, releases and licensing opportunities.",
+  keywords: ["EM Records", "latin urban label", "reggaeton", "trap latino", "music publishing", "music production"],
+  alternates: { canonical: absoluteUrl("/") },
   category: "music",
   creator: "EM Records LLC",
   publisher: "EM Records LLC",
@@ -32,10 +30,66 @@ export const metadata: Metadata = {
     shortcut: ["/icon.svg"],
     apple: ["/icon.svg"]
   },
-  verification: {
-    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
-  },
+  verification: { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION },
   robots: {
     index: true,
     follow: true,
-    nocach¶»§q«^
+    nocache: false,
+    googleBot: {
+      index: true,
+      follow: true,
+      noimageindex: false,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1
+    }
+  },
+  openGraph: {
+    title: "EM Records LLC",
+    description: "Don't chase the wave. Create it.",
+    url: absoluteUrl("/"),
+    siteName: "EM Records LLC",
+    images: [{ url: absoluteUrl("/og-default.jpg"), width: 1200, height: 630, alt: "EM Records LLC" }],
+    locale: "es_US",
+    type: "website"
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "EM Records LLC",
+    description: "Independent label, production and publishing.",
+    images: [absoluteUrl("/og-default.jpg")]
+  }
+};
+
+export default async function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
+  const [lang, socialLinks] = await Promise.all([getSiteLanguage(), getSocialLinks()]);
+  const orgSchema = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "EM Records LLC",
+    url: absoluteUrl("/"),
+    slogan: "Don't chase the wave. Create it.",
+    image: absoluteUrl("/images/em-logo-og.svg"),
+    sameAs: socialLinks.map((item) => item.url)
+  };
+  const websiteSchema = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "EM Records LLC",
+    url: absoluteUrl("/"),
+    inLanguage: lang === "es" ? "es-US" : "en-US"
+  };
+
+  return (
+    <html lang={lang}>
+      <body className="font-sans antialiased">
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLd(orgSchema) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: toJsonLd(websiteSchema) }} />
+        <TermsConsentModal />
+        <SiteHeaderV2 />
+        <main>{children}</main>
+        <SiteFooterV2 />
+      </body>
+    </html>
+  );
+}
