@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { beatArtUrl } from "@/lib/beat-art";
 import { createServiceClient } from "@/lib/supabase/service";
 
 export type BeatCatalogItem = {
@@ -55,7 +56,7 @@ export async function getPublishedBeats(): Promise<BeatCatalogItem[]> {
   const service = createServiceClient();
   const { data, error } = await service
     .from("beats")
-    .select("id,title,slug,bpm,key,genre,mood,tags,description,preview_url,cover_url,is_exclusive_sold,price_basic,price_standard,price_premium,price_exclusive")
+    .select("id,title,slug,bpm,key,genre,mood,tags,description,preview_url,cover_url,is_exclusive_sold,price_basic,price_standard,price_premium,price_exclusive,art_mode,art_version")
     .eq("status", "published")
     .order("created_at", { ascending: false });
 
@@ -72,7 +73,7 @@ export async function getPublishedBeats(): Promise<BeatCatalogItem[]> {
     tags: Array.isArray(row.tags) ? row.tags.map(String) : [],
     description: row.description ? String(row.description) : null,
     previewUrl: row.preview_url ? String(row.preview_url) : null,
-    coverUrl: row.cover_url ? String(row.cover_url) : null,
+    coverUrl: String(row.art_mode ?? "generated") === "generated" ? beatArtUrl(String(row.id), Number(row.art_version ?? 1)) : row.cover_url ? String(row.cover_url) : null,
     isExclusiveSold: Boolean(row.is_exclusive_sold),
     priceBasic: Number(row.price_basic ?? 0),
     priceStandard: Number(row.price_standard ?? 0),
