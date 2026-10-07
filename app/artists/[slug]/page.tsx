@@ -13,6 +13,7 @@ import { VideosShowcase } from "@/components/artists/videos-showcase";
 import { InternalLinksBlock } from "@/components/shared/internal-links-block";
 import { SectionTitle } from "@/components/shared/section-title";
 import { getSiteLanguage } from "@/lib/i18n/server";
+import { getSyncedYouTubeVideos } from "@/lib/catalog-sync";
 import { getArtistPhotos, getArtistPublicInsights, getArtistReleases, getFanWallEntriesByArtistSlug, getPublishedArtistBySlug, getPublishedArtists, getUpcomingEvents } from "@/lib/queries";
 import { buildArtistMetadata, buildMusicGroupJsonLd, buildPageMetadata } from "@/lib/seo";
 import { formatDate, getSpotifyEmbedHeight, normalizeImageUrl, normalizeSoundCloudEmbedUrl, normalizeSpotifyEmbedUrl, normalizeYouTubeEmbedUrl, toJsonLd } from "@/lib/utils";
@@ -116,13 +117,14 @@ export default async function ArtistDetailPage({ params }: Props) {
     notFound();
   }
 
-  const [events, artistPhotos, artistReleases, insights, allArtists, fanWallEntries] = await Promise.all([
+  const [events, artistPhotos, artistReleases, insights, allArtists, fanWallEntries, syncedYouTubeVideos] = await Promise.all([
     getUpcomingEvents(),
     getArtistPhotos(artist.id),
     getArtistReleases(artist.slug, artist.name),
     getArtistPublicInsights(artist.id),
     getPublishedArtists(),
-    getFanWallEntriesByArtistSlug(artist.slug)
+    getFanWallEntriesByArtistSlug(artist.slug),
+    getSyncedYouTubeVideos(artist.id)
   ]);
 
   const latestRelease = artistReleases[0] ?? null;
@@ -205,6 +207,19 @@ export default async function ArtistDetailPage({ params }: Props) {
       thumbnail: normalizeImageUrl(item.videoThumbnailUrl || youtubeThumbFromEmbed(item.youtubeEmbed) || item.coverUrl),
       featured: Boolean(item.videoFeatured)
     }));
+
+  for (const video of syncedYouTubeVideos) {
+    if (videoEntries.some((item) => item.href === video.href)) continue;
+    videoEntries.push({
+      id: "youtube-" + video.id,
+      title: video.title,
+      embed: video.embed,
+      href: video.href,
+      label: inferVideoLabel(video.title),
+      thumbnail: normalizeImageUrl(video.thumbnail),
+      featured: false
+    });
+  }
 
   if (videoEntries.length === 0 && artist.musicVideoEmbed) {
     videoEntries.push({

@@ -81,7 +81,14 @@ function mapArtist(row: any): Artist {
     createdAt: row.created_at,
     updatedAt: row.updated_at ?? row.created_at,
     publishedAt: row.published_at ?? null,
-    isPublished
+    isPublished,
+    spotifyArtistId: row.spotify_artist_id ?? null,
+    appleMusicArtistId: row.apple_music_artist_id ?? null,
+    youtubeChannelId: row.youtube_channel_id ?? null,
+    catalogSyncEnabled: Boolean(row.catalog_sync_enabled ?? false),
+    lastCatalogSyncAt: row.last_catalog_sync_at ?? null,
+    lastCatalogSyncStatus: row.last_catalog_sync_status ?? null,
+    lastCatalogSyncError: row.last_catalog_sync_error ?? null
   };
 }
 
