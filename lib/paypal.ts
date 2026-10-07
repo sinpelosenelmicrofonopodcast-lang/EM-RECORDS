@@ -202,14 +202,27 @@ export async function createPayPalOrder(input: {
   });
 }
 
+export async function getPayPalOrder(orderId: string) {
+  const safeOrderId = encodeURIComponent(orderId);
+  return paypalRequest<PayPalOrder>(`/v2/checkout/orders/${safeOrderId}`);
+}
+
 export async function capturePayPalOrder(orderId: string) {
   const safeOrderId = encodeURIComponent(orderId);
 
-  return paypalRequest<PayPalOrder>(`/v2/checkout/orders/${safeOrderId}/capture`, {
-    method: "POST",
-    requestId: `capture-${orderId}`,
-    body: {}
-  });
+  try {
+    return await paypalRequest<PayPalOrder>(`/v2/checkout/orders/${safeOrderId}/capture`, {
+      method: "POST",
+      requestId: `capture-${orderId}`,
+      body: {}
+    });
+  } catch (error) {
+    const current = await getPayPalOrder(orderId);
+    if (current.status === "COMPLETED") {
+      return current;
+    }
+    throw error;
+  }
 }
 
 export function getPayPalApprovalUrl(order: PayPalOrder) {
