@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 export type BeatCatalogItem = {
   id: string;
   title: string;
+  sourceTitle: string;
   slug: string;
   bpm: number;
   key: string | null;
@@ -13,7 +14,12 @@ export type BeatCatalogItem = {
   tags: string[];
   description: string | null;
   previewUrl: string | null;
+  previewStartSeconds: number;
+  previewDurationSeconds: number;
   coverUrl: string | null;
+  categoryId: string | null;
+  categoryName: string | null;
+  categorySlug: string | null;
   isExclusiveSold: boolean;
   priceBasic: number;
   priceStandard: number;
@@ -56,30 +62,65 @@ export async function getPublishedBeats(): Promise<BeatCatalogItem[]> {
   const service = createServiceClient();
   const { data, error } = await service
     .from("beats")
-    .select("id,title,slug,bpm,key,genre,mood,tags,description,preview_url,cover_url,is_exclusive_sold,price_basic,price_standard,price_premium,price_exclusive,art_mode,art_version")
+    .select("id,title,display_title,slug,bpm,key,genre,mood,tags,description,preview_url,audio_url,preview_start_seconds,preview_duration_seconds,cover_url,is_exclusive_sold,price_basic,price_standard,price_premium,price_exclusive,art_mode,art_version,category_id,created_at")
     .eq("status", "published")
     .order("created_at", { ascending: false });
 
   if (error) throw new Error(error.message);
 
-  return (data ?? []).map((row: any) => ({
-    id: String(row.id),
-    title: String(row.title),
-    slug: String(row.slug),
-    bpm: Number(row.bpm ?? 0),
-    key: row.key ? String(row.key) : null,
-    genre: row.genre ? String(row.genre) : null,
-    mood: row.mood ? String(row.mood) : null,
-    tags: Array.isArray(row.tags) ? row.tags.map(String) : [],
-    description: row.description ? String(row.description) : null,
-    previewUrl: row.preview_url ? String(row.preview_url) : null,
-    coverUrl: String(row.art_mode ?? "generated") === "generated" ? beatArtUrl(String(row.id), Number(row.art_version ?? 1)) : row.cover_url ? String(row.cover_url) : null,
-    isExclusiveSold: Boolean(row.is_exclusive_sold),
-    priceBasic: Number(row.price_basic ?? 0),
-    priceStandard: Number(row.price_standard ?? 0),
-    pricePremium: Number(row.price_premium ?? 0),
-    priceExclusive: Number(row.price_exclusive ?? 0)
-  }));
+  const rows = data ?? [];
+  const categoryIds = Array.from(
+    new Set(rows.map((row: any) => row.category_id ? String(row.category_id) : null).filter(Boolean))
+  ) as string[];
+
+  const categoryById = new Map<string, { name: string; slug: string }>();
+  if (categoryIds.length > 0) {
+    const { data: categories, error: categoryError } = await service
+      .from("beat_categories")
+      .select("id,name,slug")
+      .in("id", categoryIds);
+
+    if (categoryError) throw new Error(categoryError.message);
+    for (const category of categories ?? []) {
+      categoryById.set(String((category as any).id), {
+        name: String((category as any).name),
+        slug: String((category as any).slug)
+      });
+    }
+  }
+
+  return rows.map((row: any) => {
+    const categoryId = row.category_id ? String(row.category_id) : null;
+    const category = categoryId ? categoryById.get(categoryId) ?? null : null;
+    const hasPreviewSource = Boolean(String(row.preview_url || row.audio_url || "").trim());
+
+    return {
+      id: String(row.id),
+      title: String(row.display_title || row.title),
+      sourceTitle: String(row.title),
+      slug: String(row.slug),
+      bpm: Number(row.bpm ?? 0),
+      key: row.key ? String(row.key) : null,
+      genre: row.genre ? String(row.genre) : null,
+      mood: row.mood ? String(row.mood) : null,
+      tags: Array.isArray(row.tags) ? row.tags.map(String) : [],
+      description: row.description ? String(row.description) : null,
+      previewUrl: hasPreviewSource ? "/api/beats/" + encodeURIComponent(String(row.id)) + "/preview" : null,
+      previewStartSeconds: Number(row.preview_start_seconds ?? 15),
+      previewDurationSeconds: Number(row.preview_duration_seconds ?? 45),
+      coverUrl: String(row.art_mode ?? "generated") === "generated"
+        ? beatArtUrl(String(row.id), Number(row.art_version ?? 1))
+        : row.cover_url ? String(row.cover_url) : null,
+      categoryId,
+      categoryName: category?.name ?? null,
+      categorySlug: category?.slug ?? null,
+      isExclusiveSold: Boolean(row.is_exclusive_sold),
+      priceBasic: Number(row.price_basic ?? 0),
+      priceStandard: Number(row.price_standard ?? 0),
+      pricePremium: Number(row.price_premium ?? 0),
+      priceExclusive: Number(row.price_exclusive ?? 0)
+    };
+  });
 }
 
 async function loadMessages(inquiryId: string): Promise<BeatInquiryMessage[]> {
