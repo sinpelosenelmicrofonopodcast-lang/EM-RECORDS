@@ -1,0 +1,15 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { createServiceClient } from "@/lib/supabase/service";
+import { buildPageMetadata } from "@/lib/seo";
+
+export const metadata:Metadata=buildPageMetadata({title:"Services",description:"Recording, production, mixing, mastering, publishing and licensing services from EM Records.",path:"/services"});
+function money(c:number){return new Intl.NumberFormat("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(c/100);}
+export default async function ServicesPage(){
+  let items:any[]=[];try{const s=createServiceClient();const r=await s.from("services").select("*").order("category").order("price");items=r.data??[];}catch{}
+  return <div>
+    <section className="border-b border-white/8 bg-[#050505]"><div className="mx-auto w-full max-w-[92rem] px-6 py-24 md:px-10"><p className="text-[10px] uppercase tracking-[0.28em] text-gold">Work With EM</p><h1 className="mt-5 max-w-5xl font-display text-5xl leading-[.96] text-white md:text-8xl">Make the record.<br/><span className="text-white/35">Finish it right.</span></h1><p className="mt-7 max-w-2xl text-base leading-relaxed text-white/55">Recording, production, vocal work, mixing and mastering backed by the same operation that develops the EM Records catalog.</p><Link href="/studio" className="mt-8 inline-flex rounded-full bg-gold px-6 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-black">Start a project</Link></div></section>
+    <section className="mx-auto w-full max-w-[92rem] px-6 py-24 md:px-10"><p className="text-[10px] uppercase tracking-[0.24em] text-gold">Production Services</p><h2 className="mt-3 font-display text-4xl text-white md:text-6xl">Choose the next step.</h2><div className="mt-10 divide-y divide-white/10 border-y border-white/10">{items.map((x:any)=><article key={x.id} className="grid gap-4 py-7 md:grid-cols-[1fr_1.4fr_auto] md:items-center"><div><p className="text-[9px] uppercase tracking-[0.18em] text-gold">{String(x.category||"service").replaceAll("_"," ")}</p><h3 className="mt-2 font-display text-3xl text-white">{x.name}</h3></div><p className="max-w-2xl text-sm leading-relaxed text-white/48">{x.description}</p><div className="md:text-right"><p className="font-display text-2xl text-white">{x.price?money(Number(x.price)):"Custom"}</p><p className="mt-1 text-[9px] uppercase tracking-[0.14em] text-white/30">{x.delivery_time?x.delivery_time+" days":"Scope first"} · {x.revisions??0} revisions</p></div></article>)}</div></section>
+    <section className="border-y border-white/8 bg-white/[0.015]"><div className="mx-auto grid w-full max-w-[92rem] gap-4 px-6 py-20 md:grid-cols-3 md:px-10">{[["Studio","Record & Produce","/studio"],["Publishing","Protect & Administer","/publishing"],["Licensing","License the Catalog","/sync-licensing"]].map(([a,b,c])=><Link key={a} href={c} className="editorial-card rounded-[28px] p-7"><p className="text-[10px] uppercase tracking-[0.2em] text-gold">{a}</p><h2 className="mt-8 font-display text-4xl text-white">{b}</h2></Link>)}</div></section>
+  </div>;
+}
