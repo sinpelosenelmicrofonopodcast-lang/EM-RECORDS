@@ -88,7 +88,8 @@ create table if not exists public.paypal_payment_sessions (
     check (status in ('created','approved','captured','completed','cancelled','denied','failed')),
   metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  expires_at timestamptz not null default (now() + interval '30 minutes')
 );
 
 alter table public.paypal_payment_sessions enable row level security;
@@ -103,3 +104,10 @@ create index if not exists paypal_payment_sessions_event_idx
 create index if not exists paypal_payment_sessions_beat_idx
   on public.paypal_payment_sessions(beat_id)
   where beat_id is not null;
+
+
+create unique index if not exists paypal_active_exclusive_beat_session_key
+  on public.paypal_payment_sessions(beat_id)
+  where kind='beat'
+    and lower(coalesce(license_type,''))='exclusive'
+    and status in ('created','approved','captured');
