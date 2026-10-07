@@ -46,16 +46,17 @@ export async function getAdminControlCenterData(){
       service.from("releases").select("id,title,artist_name,artist_slug,release_date").order("release_date",{ascending:false}).limit(5)
     ]);
 
-    const actions:ActionSignal[]=[
+    const rawActions:ActionSignal[]=[
       {key:"demos",label:"Demos need review",detail:"New artist submissions waiting on a decision.",count:pendingDemos,href:"/admin/demos",tone:"critical"},
-      {key:"beats",label:"Beats need review",detail:"Catalog items are not ready for public request.",count:beatsNeedReview,href:"/admin/releases",tone:"critical"},
+      {key:"beats",label:"Beats need review",detail:"Catalog items are not ready for public request.",count:beatsNeedReview,href:"/admin/beats",tone:"critical"},
       {key:"social",label:"Publishing failures",detail:"Social jobs failed and need inspection.",count:socialFailed,href:"/admin/social-publishing",tone:"critical"},
       {key:"onboarding",label:"Onboarding tasks open",detail:"Artist onboarding requirements are incomplete.",count:openOnboarding,href:"/admin/signing",tone:"warning"},
       {key:"seo",label:"SEO queue errors",detail:"Submission jobs failed and need inspection.",count:seoErrors,href:"/admin/seo",tone:"warning"},
       {key:"deals",label:"Deal offers in draft",detail:"Offers started but not sent.",count:draftDeals,href:"/admin/signing/deals",tone:"info"},
       {key:"contracts",label:"Contracts in draft",detail:"Contracts require completion or archival.",count:draftContracts,href:"/admin/signing/contracts",tone:"info"},
       {key:"inbox",label:"Customer conversations open",detail:"Beat, studio, sync, booking and signing messages.",count:beatRequests+studioProjects+syncRequests+bookings+unreadMessages,href:"/admin/inbox",tone:"info"}
-    ].filter(x=>x.count>0).sort((a,b)=>b.count-a.count);
+    ];
+    const actions=rawActions.filter(x=>x.count>0).sort((a,b)=>b.count-a.count);
 
     return {
       unavailable:false, actions,

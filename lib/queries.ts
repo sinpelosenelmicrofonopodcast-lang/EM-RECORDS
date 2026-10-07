@@ -523,16 +523,46 @@ export const getFanWallEntriesAdmin = cache(async (): Promise<FanWallEntry[]> =>
 });
 
 export const getBookingInquiriesAdmin = cache(async (): Promise<BookingInquiry[]> => {
-  if (!isSupabaseConfigured()) {
-    return [];
-  }
-
+  if (!isSupabaseConfigured()) return [];
   try {
     const service = createServiceClient();
-    const { data, error } = await service.from("booking_inquiries").select("*").order("created_at", { ascending: false }).limit(400);
-    if (error || !data) return [];
-    return data.map(mapBookingInquiry);
-  } catch {
+    const { data, error } = await service
+      .from("booking_requests")
+      .select("id,artist_id,requester_name,requester_email,event_name,event_location,event_date,budget,notes,status,created_at,updated_at,artists(name,slug)")
+      .order("created_at", { ascending: false })
+      .limit(400);
+    if (error) throw new Error(error.message);
+
+    return (data ?? []).map((row: any) => {
+      const artist = Array.isArray(row.artists) ? row.artists[0] : row.artists;
+      const notes = String(row.notes ?? "");
+      const inquiryMatch = notes.match(/Inquiry type:\s*(festival|club|private|brand)/i);
+      const phoneMatch = notes.match(/Phone:\s*([^\n]+)/i);
+      const mappedStatus =
+        row.status === "new" ? "new" :
+        row.status === "in_review" ? "contacted" :
+        row.status === "negotiating" ? "negotiating" :
+        row.status === "confirmed" ? "confirmed" : "closed";
+
+      return {
+        id: String(row.id),
+        artistId: row.artist_id ? String(row.artist_id) : null,
+        artistSlug: String(artist?.slug ?? ""),
+        artistName: String(artist?.name ?? "EM Records Artist"),
+        inquiryType: String(inquiryMatch?.[1] ?? "club") as BookingInquiry["inquiryType"],
+        city: String(row.event_location ?? ""),
+        dateRange: row.event_date ? String(row.event_date) : "",
+        budgetRange: row.budget ? "$" + Number(row.budget).toLocaleString("en-US") : "",
+        message: notes || null,
+        contactEmail: String(row.requester_email ?? ""),
+        contactPhone: phoneMatch?.[1] ? String(phoneMatch[1]).trim() : null,
+        status: mappedStatus as BookingInquiry["status"],
+        createdAt: String(row.created_at),
+        updatedAt: row.updated_at ? String(row.updated_at) : undefined
+      };
+    });
+  } catch (error) {
+    console.error("Booking requests unavailable", error);
     return [];
   }
 });
@@ -541,38 +571,22 @@ function isContentLive(status?: string, publishAt?: string | null, fallbackDate?
   const normalized = status ?? "published";
   const now = new Date();
   const effectiveDate = publishAt ? new Date(publishAt) : fallbackDate ? new Date(fallbackDate) : null;
-
-  if (normalized === "draft") {
-    return false;
-  }
-
-  if (normalized === "scheduled") {
-    return Boolean(effectiveDate && effectiveDate <= now);
-  }
-
-  if (effectiveDate) {
-    return effectiveDate <= now;
-  }
-
+  if (normalized === "draft") return false;
+  if (normalized === "scheduled") return Boolean(effectiveDate && effectiveDate <= now);
+  if (effectiveDate) return effectiveDate <= now;
   return true;
 }
 
 export const getReleasesAdmin = cache(async (): Promise<Release[]> => {
-  if (!isSupabaseConfigured()) {
-    return mockReleases;
-  }
-
+  if (!isSupabaseConfigured()) return [];
   try {
-    const supabase = await createServerSupabase();
-    const { data, error } = await supabase.from("releases").select("*").order("release_date", { ascending: false });
-
-    if (error || !data) {
-      return mockReleases;
-    }
-
-    return data.map(mapRelease);
-  } catch {
-    return mockReleases;
+    const service = createServiceClient();
+    const { data, error } = await service.from("releases").select("*").order("release_date", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map(mapRelease);
+  } catch (error) {
+    console.error("Releases unavailable", error);
+    return [];
   }
 });
 
@@ -647,47 +661,29 @@ export const getFeaturedRelease = cache(async (): Promise<Release | null> => {
 });
 
 export const getUpcomingEvents = cache(async (): Promise<EventItem[]> => {
-  if (!isSupabaseConfigured()) {
-    return mockEvents;
-  }
-
+  if (!isSupabaseConfigured()) return [];
   try {
-    const supabase = await createServerSupabase();
+    const service = createServiceClient();
     const now = new Date().toISOString();
-
-    const { data, error } = await supabase
-      .from("events")
-      .select("*")
-      .gte("starts_at", now)
-      .order("starts_at", { ascending: true })
-      .limit(10);
-
-    if (error || !data) {
-      return mockEvents;
-    }
-
-    return data.map(mapEvent);
-  } catch {
-    return mockEvents;
+    const { data, error } = await service.from("events").select("*").gte("starts_at", now).order("starts_at", { ascending: true }).limit(10);
+    if (error) throw new Error(error.message);
+    return (data ?? []).map(mapEvent);
+  } catch (error) {
+    console.error("Events unavailable", error);
+    return [];
   }
 });
 
 export const getNewsAdmin = cache(async (): Promise<NewsItem[]> => {
-  if (!isSupabaseConfigured()) {
-    return mockNews;
-  }
-
+  if (!isSupabaseConfigured()) return [];
   try {
-    const supabase = await createServerSupabase();
-    const { data, error } = await supabase.from("news_posts").select("*").order("published_at", { ascending: false });
-
-    if (error || !data) {
-      return mockNews;
-    }
-
-    return data.map(mapNews);
-  } catch {
-    return mockNews;
+    const service = createServiceClient();
+    const { data, error } = await service.from("news_posts").select("*").order("published_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (data ?? []).map(mapNews);
+  } catch (error) {
+    console.error("News unavailable", error);
+    return [];
   }
 });
 
@@ -702,44 +698,33 @@ export const getNewsBySlug = cache(async (slug: string): Promise<NewsItem | null
 });
 
 export const getGallery = cache(async (): Promise<GalleryItem[]> => {
-  if (!isSupabaseConfigured()) {
-    return mockGallery;
-  }
-
+  if (!isSupabaseConfigured()) return [];
   try {
-    const supabase = await createServerSupabase();
-    const { data, error } = await supabase.from("gallery_items").select("*").order("created_at", { ascending: false }).limit(12);
-
-    if (error || !data) {
-      return mockGallery;
-    }
-
-    return data.map(mapGallery);
-  } catch {
-    return mockGallery;
+    const service = createServiceClient();
+    const { data, error } = await service.from("gallery_items").select("*").order("created_at", { ascending: false }).limit(12);
+    if (error) throw new Error(error.message);
+    return (data ?? []).map(mapGallery);
+  } catch (error) {
+    console.error("Gallery unavailable", error);
+    return [];
   }
 });
 
 export const getSocialLinksAdmin = cache(async (): Promise<SocialLink[]> => {
-  if (!isSupabaseConfigured()) {
-    return mockSocialLinks;
-  }
-
+  const allowMocks = process.env.NODE_ENV !== "production";
+  if (!isSupabaseConfigured()) return allowMocks ? mockSocialLinks : [];
   try {
-    const supabase = await createServerSupabase();
-    const { data, error } = await supabase
+    const service = createServiceClient();
+    const { data, error } = await service
       .from("social_links")
       .select("*")
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: true });
-
-    if (error || !data) {
-      return mockSocialLinks;
-    }
-
-    return data.map(mapSocialLink);
-  } catch {
-    return mockSocialLinks;
+    if (error) throw new Error(error.message);
+    return (data ?? []).map(mapSocialLink);
+  } catch (error) {
+    console.error("Social links unavailable", error);
+    return allowMocks ? mockSocialLinks : [];
   }
 });
 
@@ -791,105 +776,6 @@ export const getCountdownRelease = cache(async (): Promise<Release | null> => {
     .sort((a, b) => +new Date(a.releaseDate) - +new Date(b.releaseDate));
 
   return upcoming[0] ?? null;
-});
-
-export const getAdminMetrics = cache(async () => {
-  if (!isSupabaseConfigured()) {
-    const paidRevenueCents = mockTicketOrders.filter((order) => order.status === "paid").reduce((acc, order) => acc + order.amountTotal, 0);
-    const newsletterSubscribers = 42;
-    const sponsorApplications = 7;
-    const totalDemos = mockDemos.length;
-    const nextUpSubmissions = mockNextUpSubmissions.length;
-    const nextUpVotes = mockNextUpCompetitors.reduce((acc, competitor) => acc + competitor.votesCount, 0);
-    const conversionRate = newsletterSubscribers > 0 ? (mockTicketOrders.length / newsletterSubscribers) * 100 : 0;
-    const submitToVoteRate = nextUpSubmissions > 0 ? (nextUpVotes / nextUpSubmissions) * 100 : 0;
-
-    return {
-      artists: mockArtists.length,
-      releases: mockReleases.length,
-      events: mockEvents.length,
-      pendingDemos: 4,
-      totalDemos,
-      ticketOrders: mockTicketOrders.length,
-      newsletterSubscribers,
-      sponsorApplications,
-      nextUpSubmissions,
-      nextUpVotes,
-      paidRevenueCents,
-      conversionRate,
-      submitToVoteRate
-    };
-  }
-
-  try {
-    const supabase = await createServerSupabase();
-    const [
-      { count: artists },
-      { count: releases },
-      { count: events },
-      { count: pendingDemos },
-      { count: totalDemos },
-      { count: ticketOrders },
-      { count: newsletterSubscribers },
-      { count: sponsorApplications },
-      { count: nextUpSubmissions },
-      { count: nextUpVotes },
-      { data: paidOrdersData }
-    ] =
-      await Promise.all([
-        supabase.from("artists").select("id", { count: "exact", head: true }),
-        supabase.from("releases").select("id", { count: "exact", head: true }),
-        supabase.from("events").select("id", { count: "exact", head: true }),
-        supabase.from("demo_submissions").select("id", { count: "exact", head: true }).eq("status", "pending"),
-        supabase.from("demo_submissions").select("id", { count: "exact", head: true }),
-        supabase.from("ticket_orders").select("id", { count: "exact", head: true }),
-        supabase.from("newsletter_subscribers").select("id", { count: "exact", head: true }),
-        supabase.from("sponsor_applications").select("id", { count: "exact", head: true }),
-        supabase.from("next_up_submissions").select("id", { count: "exact", head: true }),
-        supabase.from("next_up_votes").select("id", { count: "exact", head: true }),
-        supabase.from("ticket_orders").select("amount_total,status").eq("status", "paid")
-      ]);
-
-    const paidRevenueCents = (paidOrdersData ?? []).reduce((acc: number, item: any) => acc + Number(item.amount_total ?? 0), 0);
-    const safeNewsletter = newsletterSubscribers ?? 0;
-    const safeTicketOrders = ticketOrders ?? 0;
-    const safeNextUpSubmissions = nextUpSubmissions ?? 0;
-    const safeNextUpVotes = nextUpVotes ?? 0;
-    const conversionRate = safeNewsletter > 0 ? (safeTicketOrders / safeNewsletter) * 100 : 0;
-    const submitToVoteRate = safeNextUpSubmissions > 0 ? (safeNextUpVotes / safeNextUpSubmissions) * 100 : 0;
-
-    return {
-      artists: artists ?? 0,
-      releases: releases ?? 0,
-      events: events ?? 0,
-      pendingDemos: pendingDemos ?? 0,
-      totalDemos: totalDemos ?? 0,
-      ticketOrders: safeTicketOrders,
-      newsletterSubscribers: safeNewsletter,
-      sponsorApplications: sponsorApplications ?? 0,
-      nextUpSubmissions: safeNextUpSubmissions,
-      nextUpVotes: safeNextUpVotes,
-      paidRevenueCents,
-      conversionRate,
-      submitToVoteRate
-    };
-  } catch {
-    return {
-      artists: mockArtists.length,
-      releases: mockReleases.length,
-      events: mockEvents.length,
-      pendingDemos: 0,
-      totalDemos: mockDemos.length,
-      ticketOrders: mockTicketOrders.length,
-      newsletterSubscribers: 0,
-      sponsorApplications: 0,
-      nextUpSubmissions: mockNextUpSubmissions.length,
-      nextUpVotes: mockNextUpCompetitors.reduce((acc, competitor) => acc + competitor.votesCount, 0),
-      paidRevenueCents: 0,
-      conversionRate: 0,
-      submitToVoteRate: 0
-    };
-  }
 });
 
 export const getSiteAnalyticsAdmin = cache(async (): Promise<SiteAnalyticsSnapshot> => {
@@ -1013,21 +899,15 @@ export const getDemoSubmissions = cache(async (): Promise<DemoSubmission[]> => {
 });
 
 export const getTicketOrders = cache(async (): Promise<TicketOrder[]> => {
-  if (!isSupabaseConfigured()) {
-    return mockTicketOrders;
-  }
-
+  if (!isSupabaseConfigured()) return [];
   try {
-    const supabase = await createServerSupabase();
-    const { data, error } = await supabase.from("ticket_orders").select("*").order("created_at", { ascending: false }).limit(30);
-
-    if (error || !data) {
-      return mockTicketOrders;
-    }
-
-    return data.map(mapTicketOrder);
-  } catch {
-    return mockTicketOrders;
+    const service = createServiceClient();
+    const { data, error } = await service.from("ticket_orders").select("*").order("created_at", { ascending: false }).limit(30);
+    if (error) throw new Error(error.message);
+    return (data ?? []).map(mapTicketOrder);
+  } catch (error) {
+    console.error("Ticket orders unavailable", error);
+    return [];
   }
 });
 
