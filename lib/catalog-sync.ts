@@ -106,7 +106,19 @@ async function spotifyToken() {
 
 async function spotifyJson(url: string, token: string) {
   const response = await fetch(url, { headers: { authorization: "Bearer " + token }, cache: "no-store" });
-  if (!response.ok) throw new Error("Spotify request failed " + response.status + " for " + url);
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    let detail = body.trim();
+    try {
+      const parsed = body ? JSON.parse(body) : null;
+      detail =
+        String(parsed?.error?.message ?? parsed?.message ?? parsed?.reason ?? parsed?.error ?? detail).trim();
+    } catch {
+      // Keep the raw response text when Spotify does not return JSON.
+    }
+    const suffix = detail ? " · " + detail.slice(0, 500) : "";
+    throw new Error("Spotify request failed " + response.status + " for " + url + suffix);
+  }
   return response.json();
 }
 
@@ -120,10 +132,10 @@ async function fetchSpotify(artist: ArtistRow): Promise<ProviderResult> {
     let next: string | null =
       "https://api.spotify.com/v1/artists/" +
       encodeURIComponent(artist.spotify_artist_id) +
-      "/albums?include_groups=album,single&limit=50&market=US";
+      "/albums?include_groups=album,single&limit=10&market=US";
     let pages = 0;
 
-    while (next && pages < 6) {
+    while (next && pages < 100) {
       const payload = await spotifyJson(next, token);
       for (const item of Array.isArray(payload.items) ? payload.items : []) {
         if (item?.id) albumMap.set(String(item.id), item);
@@ -132,31 +144,30 @@ async function fetchSpotify(artist: ArtistRow): Promise<ProviderResult> {
       pages += 1;
     }
 
-    const albumIds = Array.from(albumMap.keys());
     const fullAlbums: any[] = [];
-    for (let i = 0; i < albumIds.length; i += 20) {
-      const ids = albumIds.slice(i, i + 20);
-      const payload = await spotifyJson(
-        "https://api.spotify.com/v1/albums?market=US&ids=" + encodeURIComponent(ids.join(",")),
+    for (const albumId of Array.from(albumMap.keys())) {
+      const album = await spotifyJson(
+        "https://api.spotify.com/v1/albums/" + encodeURIComponent(albumId) + "?market=US",
         token
       );
-      for (const album of Array.isArray(payload.albums) ? payload.albums : []) if (album?.id) fullAlbums.push(album);
-    }
-
-    const trackIds: string[] = [];
-    for (const album of fullAlbums) {
-      for (const track of album?.tracks?.items ?? []) if (track?.id) trackIds.push(String(track.id));
+      if (album?.id) fullAlbums.push(album);
     }
 
     const fullTrackById = new Map<string, any>();
-    for (let i = 0; i < trackIds.length; i += 50) {
-      const ids = trackIds.slice(i, i + 50);
-      const payload = await spotifyJson(
-        "https://api.spotify.com/v1/tracks?market=US&ids=" + encodeURIComponent(ids.join(",")),
-        token
-      );
-      for (const track of Array.isArray(payload.tracks) ? payload.tracks : []) {
-        if (track?.id) fullTrackById.set(String(track.id), track);
+    for (const album of fullAlbums) {
+      for (const simple of album?.tracks?.items ?? []) {
+        if (!simple?.id) continue;
+        const id = String(simple.id);
+        try {
+          const track = await spotifyJson(
+            "https://api.spotify.com/v1/tracks/" + encodeURIComponent(id) + "?market=US",
+            token
+          );
+          if (track?.id) fullTrackById.set(id, track);
+        } catch {
+          // Keep the simplified album-track object when an individual track lookup is unavailable.
+          fullTrackById.set(id, simple);
+        }
       }
     }
 
