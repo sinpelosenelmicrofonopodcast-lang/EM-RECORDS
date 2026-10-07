@@ -920,19 +920,10 @@ export async function updateBookingInquiryStatusAction(formData: FormData) {
   const supabase = await requireAdminClient();
   const id = String(formData.get("id") ?? "").trim();
   const status = String(formData.get("status") ?? "").trim();
-
-  if (!id) {
-    throw new Error("Missing booking inquiry id.");
-  }
-
-  if (!["new", "contacted", "negotiating", "confirmed", "closed"].includes(status)) {
-    throw new Error("Invalid booking inquiry status.");
-  }
-
-  const { error } = await supabase.from("booking_inquiries").update({ status }).eq("id", id);
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  revalidatePath("/admin/booking-inquiries");
+  const allowed = ["new", "in_review", "negotiating", "confirmed", "done", "declined"];
+  if (!id) throw new Error("Missing booking request id.");
+  if (!allowed.includes(status)) throw new Error("Invalid booking request status.");
+  const { error } = await supabase.from("booking_requests").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/inbox");
 }

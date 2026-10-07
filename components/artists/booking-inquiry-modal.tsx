@@ -65,6 +65,7 @@ export function BookingInquiryModal({ artistSlug, artistName, bookingEmail }: Pr
               <input type="hidden" name="artistName" value={artistName} />
               <input type="text" name="website" className="hidden" tabIndex={-1} autoComplete="off" aria-hidden="true" />
 
+              <input name="contactName" required placeholder="Contact name" className="focus-gold rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white" />
               <select name="inquiryType" required className="focus-gold rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white">
                 <option value="festival">Festival</option>
                 <option value="club">Club</option>

@@ -303,6 +303,7 @@ export async function submitBookingInquiryAction(
 ): Promise<BookingInquirySubmitState> {
   const artistSlug = sanitizePlainText(String(formData.get("artistSlug") ?? "").toLowerCase(), 120);
   const artistName = sanitizePlainText(String(formData.get("artistName") ?? ""), 120);
+  const contactName = sanitizePlainText(String(formData.get("contactName") ?? ""), 120);
   const inquiryTypeRaw = sanitizePlainText(String(formData.get("inquiryType") ?? "").toLowerCase(), 40);
   const city = sanitizePlainText(String(formData.get("city") ?? ""), 120);
   const dateRange = sanitizePlainText(String(formData.get("dateRange") ?? ""), 120);
@@ -312,97 +313,65 @@ export async function submitBookingInquiryAction(
   const contactPhone = sanitizePlainText(String(formData.get("contactPhone") ?? ""), 80);
   const honeypot = sanitizePlainText(String(formData.get("website") ?? ""), 120);
 
-  if (honeypot) {
-    return {
-      status: "success",
-      message: "Request sent."
-    };
-  }
+  if (honeypot) return { status: "success", message: "Request sent." };
 
   const inquiryType = ["festival", "club", "private", "brand"].includes(inquiryTypeRaw) ? inquiryTypeRaw : "club";
-
-  if (!artistSlug || !city || !dateRange || !budgetRange || !contactEmail) {
-    return {
-      status: "error",
-      message: "Please complete all required fields."
-    };
+  if (!artistSlug || !contactName || !city || !dateRange || !budgetRange || !contactEmail) {
+    return { status: "error", message: "Please complete all required fields." };
   }
-
-  if (!isSupabaseConfigured()) {
-    return {
-      status: "error",
-      message: "Booking service is unavailable."
-    };
-  }
+  if (!isSupabaseConfigured()) return { status: "error", message: "Booking service is unavailable." };
 
   try {
-    const h = await headers();
-    const ip = getRequestIp(h);
-    const userAgent = h.get("user-agent") || null;
     const service = createServiceClient();
+    const { data: artist, error: artistError } = await service.from("artists").select("id,name,slug").eq("slug", artistSlug).maybeSingle();
+    if (artistError || !artist?.id) return { status: "error", message: "Artist booking is unavailable." };
 
-    const { data: artist } = await service.from("artists").select("id,name,slug").eq("slug", artistSlug).maybeSingle();
-    const resolvedArtistName = String(artist?.name ?? artistName ?? "EM Records Artist");
+    const resolvedArtistName = String(artist.name ?? artistName ?? "EM Records Artist");
+    const dateMatch = dateRange.match(/\d{4}-\d{2}-\d{2}/)?.[0] ?? null;
+    const budgetMatch = budgetRange.replace(/,/g, "").match(/\d+(?:\.\d+)?/);
+    const parsedBudget = budgetMatch ? Number(budgetMatch[0]) : null;
+    const notes = [
+      "Inquiry type: " + inquiryType,
+      "Date range: " + dateRange,
+      "Budget range: " + budgetRange,
+      contactPhone ? "Phone: " + contactPhone : "",
+      message
+    ].filter(Boolean).join("\n");
 
-    const { error } = await service.from("booking_inquiries").insert({
-      artist_id: artist?.id ?? null,
-      artist_slug: artistSlug,
-      artist_name: resolvedArtistName,
-      inquiry_type: inquiryType,
-      city,
-      date_range: dateRange,
-      budget_range: budgetRange,
-      message: message || null,
-      contact_email: contactEmail,
-      contact_phone: contactPhone || null,
-      status: "new",
-      ip,
-      user_agent: userAgent
+    const { error } = await service.from("booking_requests").insert({
+      artist_id: artist.id,
+      requester_name: contactName,
+      requester_email: contactEmail,
+      event_name: resolvedArtistName + " · " + inquiryType,
+      event_location: city,
+      event_date: dateMatch,
+      budget: parsedBudget !== null && Number.isFinite(parsedBudget) ? parsedBudget : null,
+      notes: notes || null,
+      status: "new"
     });
 
-    if (error) {
-      return {
-        status: "error",
-        message: "Could not submit booking request. Verify SQL migration."
-      };
-    }
+    if (error) return { status: "error", message: "Could not submit booking request." };
 
     await sendTransactionalEmail({
       to: process.env.BOOKING_ALERT_EMAIL || "emrecordsllc@gmail.com",
-      subject: `Booking inquiry · ${resolvedArtistName}`,
-      html: `
-        <h2>New booking inquiry</h2>
-        <p><strong>Artist:</strong> ${resolvedArtistName}</p>
-        <p><strong>Type:</strong> ${inquiryType}</p>
-        <p><strong>City:</strong> ${city}</p>
-        <p><strong>Date range:</strong> ${dateRange}</p>
-        <p><strong>Budget:</strong> ${budgetRange}</p>
-        <p><strong>Email:</strong> ${contactEmail}</p>
-        <p><strong>Phone:</strong> ${contactPhone || "N/A"}</p>
-        <p><strong>Message:</strong> ${message || "N/A"}</p>
-      `
-    });
+      subject: "Booking inquiry · " + resolvedArtistName,
+      html:
+        "<h2>New booking inquiry</h2>" +
+        "<p><strong>Artist:</strong> " + resolvedArtistName + "</p>" +
+        "<p><strong>Contact:</strong> " + contactName + "</p>" +
+        "<p><strong>Type:</strong> " + inquiryType + "</p>" +
+        "<p><strong>City:</strong> " + city + "</p>" +
+        "<p><strong>Date range:</strong> " + dateRange + "</p>" +
+        "<p><strong>Budget:</strong> " + budgetRange + "</p>" +
+        "<p><strong>Email:</strong> " + contactEmail + "</p>" +
+        "<p><strong>Phone:</strong> " + (contactPhone || "-") + "</p>" +
+        "<p>" + (message || "") + "</p>"
+    }).catch(() => null);
 
-    await logSiteEvent("booking_inquiry_submitted", {
-      path: `/artists/${artistSlug}`,
-      metadata: {
-        artistSlug,
-        inquiryType
-      }
-    });
-
-    revalidatePath(`/artists/${artistSlug}`);
-    revalidatePath("/admin/booking-inquiries");
-
-    return {
-      status: "success",
-      message: "Inquiry submitted. EM Records will contact you shortly."
-    };
+    revalidatePath("/admin/inbox");
+    return { status: "success", message: "Booking request received. EM Records will follow up directly." };
   } catch {
-    return {
-      status: "error",
-      message: "Unexpected error. Please try again."
-    };
+    return { status: "error", message: "Could not submit booking request." };
   }
 }
 

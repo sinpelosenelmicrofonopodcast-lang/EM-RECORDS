@@ -8,6 +8,7 @@ const nav=[
   {href:"/admin/artists",label:"Roster",group:"Artists"},
   {href:"/admin/signing",label:"Signing Pipeline",group:"Artists"},
   {href:"/admin/releases",label:"Releases",group:"Catalog"},
+  {href:"/admin/beats",label:"Beats Catalog",group:"Catalog"},
   {href:"/admin/beat-requests",label:"Beat Requests",group:"Catalog"},
   {href:"/admin/booking-inquiries",label:"Projects & Bookings",group:"Business"},
   {href:"/admin/events",label:"Events",group:"Business"},
