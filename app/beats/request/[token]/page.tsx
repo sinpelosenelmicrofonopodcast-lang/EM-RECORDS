@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { MessageBody } from "@/components/beats/message-body";
 import { notFound } from "next/navigation";
 import { replyBeatInquiryAction } from "@/lib/actions/beat-inquiries";
 import { getBeatInquiryThreadByToken } from "@/lib/beat-inquiries";
@@ -64,7 +65,7 @@ export default async function BeatRequestThreadPage({ params, searchParams }: Pr
             <p className="text-[10px] uppercase tracking-[0.18em] text-white/45">
               {message.senderKind === "staff" ? "EM Records" : "You"} · {new Date(message.createdAt).toLocaleString()}
             </p>
-            <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-white/80">{message.body}</p>
+            <MessageBody text={message.body} />
           </article>
         ))}
       </section>

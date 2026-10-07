@@ -47,6 +47,19 @@ export type BeatInquiryThread = {
   lastMessageAt: string;
   createdAt: string;
   messages: BeatInquiryMessage[];
+  beatPriceBasic?: number;
+  beatPriceStandard?: number;
+  beatPricePremium?: number;
+  beatPriceExclusive?: number;
+  beatExclusiveSold?: boolean;
+  beatHasPrivateMaster?: boolean;
+  paidAmount?: number | null;
+  paymentMethod?: string | null;
+  orderStatus?: string | null;
+  deliveryPath?: string | null;
+  deliveryExpiresAt?: string | null;
+  deliveryDownloadCount?: number;
+  deliveryMaxDownloads?: number;
 };
 
 function relationObject<T>(value: T | T[] | null | undefined): T | null {
@@ -149,7 +162,7 @@ export async function getBeatInquiryThreadByToken(token: string): Promise<BeatIn
   const tokenHash = hashBeatInquiryToken(token);
   const { data: inquiry, error } = await service
     .from("beat_inquiries")
-    .select("id,beat_id,requester_name,requester_email,license_type,status,last_message_at,created_at,beats(title,slug)")
+    .select("id,beat_id,requester_name,requester_email,license_type,status,last_message_at,created_at,beats(title,display_title,slug)")
     .eq("access_token_hash", tokenHash)
     .maybeSingle();
 
@@ -162,7 +175,7 @@ export async function getBeatInquiryThreadByToken(token: string): Promise<BeatIn
   return {
     id: String(inquiry.id),
     beatId: String(inquiry.beat_id),
-    beatTitle: String(beat?.title ?? "Beat"),
+    beatTitle: String(beat?.display_title ?? beat?.title ?? "Beat"),
     beatSlug: String(beat?.slug ?? ""),
     requesterName: String(inquiry.requester_name),
     requesterEmail: String(inquiry.requester_email),
@@ -178,7 +191,7 @@ export async function getBeatInquiriesAdmin(): Promise<BeatInquiryThread[]> {
   const service = createServiceClient();
   const { data, error } = await service
     .from("beat_inquiries")
-    .select("id,beat_id,requester_name,requester_email,license_type,status,last_message_at,created_at,beats(title,slug)")
+    .select("id,beat_id,requester_name,requester_email,license_type,status,last_message_at,created_at,beats(title,display_title,slug,audio_url,is_exclusive_sold,price_basic,price_standard,price_premium,price_exclusive)")
     .order("last_message_at", { ascending: false })
     .limit(250);
 
@@ -186,6 +199,7 @@ export async function getBeatInquiriesAdmin(): Promise<BeatInquiryThread[]> {
 
   const rows = data ?? [];
   const ids = rows.map((row: any) => String(row.id));
+  const beatIds = Array.from(new Set(rows.map((row: any) => String(row.beat_id))));
   const grouped = new Map<string, BeatInquiryMessage[]>();
 
   if (ids.length > 0) {
@@ -211,12 +225,48 @@ export async function getBeatInquiriesAdmin(): Promise<BeatInquiryThread[]> {
     }
   }
 
+  const orderByInquiry = new Map<string, any>();
+  const deliveryByOrder = new Map<string, any>();
+
+  if (beatIds.length > 0) {
+    const { data: orders, error: orderError } = await service
+      .from("orders")
+      .select("id,product_id,price,status,metadata,created_at")
+      .eq("product_type", "beat")
+      .in("product_id", beatIds)
+      .order("created_at", { ascending: false });
+
+    if (orderError) throw new Error(orderError.message);
+
+    for (const order of orders ?? []) {
+      const inquiryId = String((order as any).metadata?.inquiryId ?? "");
+      if (inquiryId && ids.includes(inquiryId) && !orderByInquiry.has(inquiryId)) {
+        orderByInquiry.set(inquiryId, order);
+      }
+    }
+
+    const orderIds = Array.from(orderByInquiry.values()).map((order: any) => String(order.id));
+    if (orderIds.length > 0) {
+      const { data: deliveries, error: deliveryError } = await service
+        .from("order_deliveries")
+        .select("order_id,token,expires_at,max_downloads,download_count")
+        .in("order_id", orderIds);
+
+      if (deliveryError) throw new Error(deliveryError.message);
+      for (const delivery of deliveries ?? []) {
+        deliveryByOrder.set(String((delivery as any).order_id), delivery);
+      }
+    }
+  }
+
   return rows.map((row: any) => {
     const beat = relationObject<any>(row.beats);
+    const order = orderByInquiry.get(String(row.id)) ?? null;
+    const delivery = order ? deliveryByOrder.get(String(order.id)) ?? null : null;
     return {
       id: String(row.id),
       beatId: String(row.beat_id),
-      beatTitle: String(beat?.title ?? "Beat"),
+      beatTitle: String(beat?.display_title ?? beat?.title ?? "Beat"),
       beatSlug: String(beat?.slug ?? ""),
       requesterName: String(row.requester_name),
       requesterEmail: String(row.requester_email),
@@ -224,7 +274,20 @@ export async function getBeatInquiriesAdmin(): Promise<BeatInquiryThread[]> {
       status: String(row.status),
       lastMessageAt: String(row.last_message_at),
       createdAt: String(row.created_at),
-      messages: grouped.get(String(row.id)) ?? []
+      messages: grouped.get(String(row.id)) ?? [],
+      beatPriceBasic: Number(beat?.price_basic ?? 0),
+      beatPriceStandard: Number(beat?.price_standard ?? 0),
+      beatPricePremium: Number(beat?.price_premium ?? 0),
+      beatPriceExclusive: Number(beat?.price_exclusive ?? 0),
+      beatExclusiveSold: Boolean(beat?.is_exclusive_sold),
+      beatHasPrivateMaster: String(beat?.audio_url ?? "").startsWith("storage://"),
+      paidAmount: order ? Number(order.price ?? 0) : null,
+      paymentMethod: order ? String(order.metadata?.paymentMethod ?? "external") : null,
+      orderStatus: order ? String(order.status ?? "") : null,
+      deliveryPath: delivery ? "/beats/delivery/" + String(delivery.token) : null,
+      deliveryExpiresAt: delivery?.expires_at ? String(delivery.expires_at) : null,
+      deliveryDownloadCount: Number(delivery?.download_count ?? 0),
+      deliveryMaxDownloads: Number(delivery?.max_downloads ?? 0)
     };
   });
 }

@@ -28,8 +28,8 @@ type Props = {
   }>;
 };
 
-function money(cents: number): string {
-  if (!Number.isFinite(cents) || cents <= 0) return "Consultar";
+function money(cents: number, lang: string): string {
+  if (!Number.isFinite(cents) || cents <= 0) return lang === "es" ? "Consultar precio" : "Contact for pricing";
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(cents / 100);
 }
 
@@ -224,10 +224,10 @@ export default async function BeatsPage({ searchParams }: Props) {
               ) : null}
 
               <div className="mt-5 grid grid-cols-2 gap-2 text-xs text-white/65">
-                <span className="rounded-xl border border-white/10 px-3 py-2">Basic · {money(beat.priceBasic)}</span>
-                <span className="rounded-xl border border-white/10 px-3 py-2">Standard · {money(beat.priceStandard)}</span>
-                <span className="rounded-xl border border-white/10 px-3 py-2">Premium · {money(beat.pricePremium)}</span>
-                <span className="rounded-xl border border-white/10 px-3 py-2">Exclusive · {beat.isExclusiveSold ? "Sold" : money(beat.priceExclusive)}</span>
+                <span className="rounded-xl border border-white/10 px-3 py-2">Basic · {money(beat.priceBasic, lang)}</span>
+                <span className="rounded-xl border border-white/10 px-3 py-2">Standard · {money(beat.priceStandard, lang)}</span>
+                <span className="rounded-xl border border-white/10 px-3 py-2">Premium · {money(beat.pricePremium, lang)}</span>
+                <span className="rounded-xl border border-white/10 px-3 py-2">Exclusive · {beat.isExclusiveSold ? "Sold" : money(beat.priceExclusive, lang)}</span>
               </div>
 
               <Link href={"/beats?request=" + beat.id + "#request-beat"} className="mt-5 inline-flex rounded-full border border-gold bg-gold px-6 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-black">
@@ -260,10 +260,10 @@ export default async function BeatsPage({ searchParams }: Props) {
             <input type="email" name="email" required maxLength={320} placeholder="Email" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
             <select name="licenseType" defaultValue="unsure" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold">
               <option value="unsure">{lang === "es" ? "No estoy seguro — quiero orientación" : "Not sure — I need guidance"}</option>
-              <option value="basic">Basic · {money(selectedBeat.priceBasic)}</option>
-              <option value="standard">Standard · {money(selectedBeat.priceStandard)}</option>
-              <option value="premium">Premium · {money(selectedBeat.pricePremium)}</option>
-              {!selectedBeat.isExclusiveSold ? <option value="exclusive">Exclusive · {money(selectedBeat.priceExclusive)}</option> : null}
+              <option value="basic">Basic · {money(selectedBeat.priceBasic, lang)}</option>
+              <option value="standard">Standard · {money(selectedBeat.priceStandard, lang)}</option>
+              <option value="premium">Premium · {money(selectedBeat.pricePremium, lang)}</option>
+              {!selectedBeat.isExclusiveSold ? <option value="exclusive">Exclusive · {money(selectedBeat.priceExclusive, lang)}</option> : null}
             </select>
             <div className="hidden md:block" />
             <textarea name="message" required minLength={2} maxLength={5000} rows={6} placeholder={lang === "es" ? "Háblanos del proyecto, fecha estimada y cualquier duda." : "Tell us about your project, timing and any questions."} className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold md:col-span-2" />
