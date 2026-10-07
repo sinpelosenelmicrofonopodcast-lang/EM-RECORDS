@@ -1,0 +1,9 @@
+"use server";
+import { revalidatePath } from "next/cache";
+import { requireAdminPage } from "@/lib/auth";
+import { createServiceClient } from "@/lib/supabase/service";
+
+async function svc(){await requireAdminPage();return createServiceClient();}
+export async function updateStudioProjectStatusAction(formData:FormData){const s=await svc();const id=String(formData.get("id")??"");const status=String(formData.get("status")??"");const allowed=["inquiry","quoted","awaiting_deposit","scheduled","in_progress","client_review","revision","completed","cancelled"];if(!allowed.includes(status))throw new Error("Invalid status");const {error}=await s.from("client_projects").update({status,updated_at:new Date().toISOString()}).eq("id",id);if(error)throw new Error(error.message);revalidatePath("/admin/inbox");}
+export async function updateSyncInquiryStatusAction(formData:FormData){const s=await svc();const id=String(formData.get("id")??"");const status=String(formData.get("status")??"");const allowed=["new","qualifying","rights_check","quoted","negotiating","approved","licensed","declined","expired"];if(!allowed.includes(status))throw new Error("Invalid status");const {error}=await s.from("sync_inquiries").update({status,updated_at:new Date().toISOString()}).eq("id",id);if(error)throw new Error(error.message);revalidatePath("/admin/inbox");}
+export async function updateBookingRequestStatusAction(formData:FormData){const s=await svc();const id=String(formData.get("id")??"");const status=String(formData.get("status")??"");const allowed=["new","in_review","negotiating","confirmed","done","declined"];if(!allowed.includes(status))throw new Error("Invalid status");const {error}=await s.from("booking_requests").update({status,updated_at:new Date().toISOString()}).eq("id",id);if(error)throw new Error(error.message);revalidatePath("/admin/inbox");}
