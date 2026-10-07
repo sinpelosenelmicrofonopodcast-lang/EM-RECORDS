@@ -3,7 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
 cmake --build build --target MixMaestro_VST3 MixMaestroTests --config Release --parallel 3
-./build/MixMaestroTests_artefacts/Release/"Mix Maestro Tests"
+./build/MixMaestroTests_artefacts/Release/MixMaestroTests
 plugin_path="$PWD/build/MixMaestro_artefacts/Release/VST3/Mix Maestro.vst3"
 test -d "$plugin_path"
 codesign --force --deep --sign - "$plugin_path"

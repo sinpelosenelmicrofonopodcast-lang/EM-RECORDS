@@ -72,7 +72,7 @@ private:
 void Editor::addSlider(const char* id,const char* title,const char* suffix){auto s=std::make_unique<juce::Slider>();s->setSliderStyle(juce::Slider::LinearHorizontal);s->setTextBoxStyle(juce::Slider::TextBoxRight,false,72,22);s->setTextValueSuffix(suffix);s->setLookAndFeel(&skin);addAndMakeVisible(*s);auto l=std::make_unique<juce::Label>();l->setText(title,juce::dontSendNotification);l->setColour(juce::Label::textColourId,juce::Colour(0xffacb9cc));addAndMakeVisible(*l);attachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(p.state,id,*s));sliders.push_back(std::move(s));labels.push_back(std::move(l));}
 void Editor::attachButton(juce::ToggleButton& b,const char* id){addAndMakeVisible(b);b.setLookAndFeel(&skin);buttons.push_back(std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(p.state,id,b));}
 Editor::Editor(Processor& proc):AudioProcessorEditor(proc),p(proc){
- setSize(1120,860);setResizable(false,false);
+ setResizable(false,false);
  skin.setColour(juce::Slider::thumbColourId,juce::Colour(0xff48e0b7));skin.setColour(juce::Slider::trackColourId,juce::Colour(0xff48e0b7));skin.setColour(juce::TextButton::buttonColourId,juce::Colour(0xff29384c));
  for(auto* b:{&reset,&capture,&load,&match,&report,&neutral}){b->setLookAndFeel(&skin);addAndMakeVisible(*b);}
  attachButton(bypass,"bypass");attachButton(eqOn,"eqOn");attachButton(compOn,"compOn");attachButton(mono,"mono");addAndMakeVisible(freeze);freeze.setLookAndFeel(&skin);
@@ -83,7 +83,7 @@ Editor::Editor(Processor& proc):AudioProcessorEditor(proc),p(proc){
  notes.setMultiLine(true);notes.setReadOnly(true);notes.setColour(juce::TextEditor::backgroundColourId,juce::Colour(0xff182230));notes.setColour(juce::TextEditor::textColourId,juce::Colour(0xffd7e2ef));addAndMakeVisible(notes);
  const char* names[]={"SUB","CUERPO","MEDIOS","PRESENCIA","AIRE"};for(int i=0;i<5;++i){auto id="eq"+juce::String(i);addSlider((id+"f").toRawUTF8(),names[i]," Hz");addSlider((id+"g").toRawUTF8(),"Ganancia"," dB");addSlider((id+"q").toRawUTF8(),"Q");}
  addSlider("threshold","Threshold"," dB");addSlider("ratio","Ratio",":1");addSlider("attack","Attack"," ms");addSlider("release","Release"," ms");addSlider("knee","Knee"," dB");addSlider("makeup","Makeup"," dB");addSlider("sc","HPF detector"," Hz");addSlider("gain","Salida"," dB");addSlider("mix","Wet"," %");
- startTimerHz(8);
+ setSize(1120,860);startTimerHz(8);
 }
 void Editor::resized(){
  track.setBounds(700,24,200,28);role.setBounds(920,24,180,28);reset.setBounds(20,67,135,28);capture.setBounds(165,67,115,28);load.setBounds(290,67,145,28);match.setBounds(445,67,125,28);report.setBounds(580,67,160,28);freeze.setBounds(755,67,115,28);mono.setBounds(880,67,90,28);bypass.setBounds(980,67,130,28);

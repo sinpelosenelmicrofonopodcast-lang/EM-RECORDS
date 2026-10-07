@@ -11,6 +11,6 @@ int main(){
  p.set("bypass",1);for(int pass=0;pass<12;++pass){b.clear();b.setSample(0,200,0.4f);b.setSample(1,200,-0.2f);p.processBlock(b,midi);}require(std::abs(b.getSample(0,200)-0.4)<1e-6,"bypass failed");
  p.set("mono",1);b.clear();b.setSample(0,200,0.4f);b.setSample(1,200,-0.2f);p.processBlock(b,midi);require(std::abs(b.getSample(0,200)-0.1)<1e-5&&std::abs(b.getSample(1,200)-0.1)<1e-5,"mono failed");
  ++p.epoch;b.clear();p.processBlock(b,midi);juce::Thread::sleep(100);s=p.analyzer.snapshot();require(s.input.frames==512,"section reset failed");
- std::unique_ptr<juce::AudioProcessorEditor> editor(p.createEditor());require(editor->getWidth()==1120&&editor->getHeight()==860,"GUI failed");editor.reset();
+ std::unique_ptr<juce::AudioProcessorEditor> editor(p.createEditor());require(editor->getWidth()==1120&&editor->getHeight()==860,"GUI failed");auto image=editor->createComponentSnapshot(editor->getLocalBounds());juce::File preview=juce::File::getCurrentWorkingDirectory().getChildFile("dist/Mix_Maestro_0.2_Preview.png");preview.getParentDirectory().createDirectory();if(auto stream=preview.createOutputStream()){juce::PNGImageFormat png;require(png.writeImageToStream(image,*stream),"GUI render failed");}editor.reset();
  std::cout<<"PASS: neutral signal, async analysis/FFT, finite EQ, state recall, full bypass, mono fold, section reset, GUI construction\n";
 }
