@@ -11,6 +11,6 @@ codesign --verify --deep --strict "$plugin_path"
 lipo "$plugin_path/Contents/MacOS/Mix Maestro" -verify_arch arm64
 mkdir -p package-root/Library/Audio/Plug-Ins/VST3 dist
 ditto "$plugin_path" "package-root/Library/Audio/Plug-Ins/VST3/Mix Maestro.vst3"
-pkgbuild --root package-root --identifier com.emrecords.mixmaestro.installer --version 0.2.0 --install-location / dist/Mix_Maestro_0.2.0_AppleSilicon.pkg
-pkgutil --payload-files dist/Mix_Maestro_0.2.0_AppleSilicon.pkg
-shasum -a 256 dist/Mix_Maestro_0.2.0_AppleSilicon.pkg > dist/SHA256.txt
+pkgbuild --root package-root --identifier com.emrecords.mixmaestro.installer --version 1.0.0 --install-location / dist/Mix_Maestro_1.0.0_AppleSilicon.pkg
+pkgutil --payload-files dist/Mix_Maestro_1.0.0_AppleSilicon.pkg
+shasum -a 256 dist/Mix_Maestro_1.0.0_AppleSilicon.pkg > dist/SHA256.txt

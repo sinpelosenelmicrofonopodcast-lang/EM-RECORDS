@@ -1,6 +1,6 @@
-# Mix Maestro 0.2 — Apple Silicon / FL Studio
+# Mix Maestro 1.0 — Apple Silicon / FL Studio
 
-Instala el PKG con FL Studio cerrado. Conserva una copia de la version 0.1 si necesitas volver atras. La 0.2 usa la misma identidad VST3 y reemplaza el plugin instalado, conservando parametros gain/bypass de proyectos anteriores. El programa y paquete tienen firma ad hoc, no Developer ID ni notarizacion.
+Instala el PKG con FL Studio cerrado. Conserva una copia de la version 0.1 si necesitas volver atras. La 1.0 usa la misma identidad VST3 y reemplaza el plugin instalado, conservando parametros gain/bypass de proyectos anteriores. El programa y paquete tienen firma ad hoc, no Developer ID ni notarizacion.
 
 ## Flujo
 
@@ -30,3 +30,12 @@ Pruebas del nucleo: RMS, correlacion centrada, plegado mono, respuesta de bell -
 ## Dependencias
 
 JUCE 8.0.12 bajo sus propios terminos https://juce.com/legal/juce-8-licence/ . El codigo de Mix Maestro esta en la rama mix-maestro-installer de EM-RECORDS para uso y modificacion por el usuario. No se promete calidad musical, premios ni equivalencia con un ingeniero humano.
+
+## Acciones asistidas 1.0
+
+Proponer COMP usa el pico y crest medidos para un punto inicial por rol. Si crest <=6 dB no activa compresion. Threshold inicial = pico -4 dB; no promete una GR objetivo ni adapta continuamente. Ajusta escuchando.
+EQ con referencia compara energia relativa en cinco regiones amplias. Propone bells amplios Q 0.7, mitad de la diferencia de energia y limite +/-3 dB; regiones casi vacias permanecen 0. Solo actua al pulsar y reemplaza las cinco bandas. No implica exceso, masking o resonancia. Necesita minimo tres segundos de audio medido y referencia.
+Deshacer alterna el estado antes/despues de la ultima accion asistida o Reset DSP. A/B mismo RMS aproxima salida a entrada con margen sample peak -1 dBFS; no garantiza igualdad si actua el margen. Margen -3 dB reduce salida segun el pico medido; no limita picos futuros.
+Las mediciones reinician al cambiar controles de procesamiento para evitar mezclar ajustes distintos. Las rampas de transicion se incluyen al principio de la nueva seccion. Congelar descarta nuevas muestras de analisis. El grafico verde es ENTRADA, naranja referencia. IN y OUT son picos acumulados de la seccion; RMS IN/OUT tambien acumulado, GR es del bloque actual.
+Para evaluar master terminado, coloca la instancia de analisis al final, EQ y COMP apagados, salida 0, wet 100 y mono apagado. Una instancia previa al limitador solo analiza lo que llega a ese punto.
+Esta entrega tiene firma ad hoc sin Developer ID/notarizacion. No incluye IA conversacional, afinacion ni edicion de clips. Es procesamiento local y analisis estadistico asistido, no ingeniero autonomo.

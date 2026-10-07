@@ -17,12 +17,12 @@ jobs:
         run: bash mix-maestro/build-package.sh
       - name: Test installation
         run: |
-          sudo installer -pkg mix-maestro/dist/Mix_Maestro_0.2.0_AppleSilicon.pkg -target /
+          sudo installer -pkg mix-maestro/dist/Mix_Maestro_1.0.0_AppleSilicon.pkg -target /
           test -d '/Library/Audio/Plug-Ins/VST3/Mix Maestro.vst3'
           codesign --verify --deep --strict '/Library/Audio/Plug-Ins/VST3/Mix Maestro.vst3'
       - uses: actions/upload-artifact@v4
         with:
-          name: Mix-Maestro-AppleSilicon-Installer-v02
+          name: Mix-Maestro-AppleSilicon-Installer-v1
           path: mix-maestro/dist/*
           if-no-files-found: error
           retention-days: 30
