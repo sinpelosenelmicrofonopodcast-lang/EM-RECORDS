@@ -11,18 +11,18 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - name: Test meter
-        run: clang++ -std=c++17 -Wall -Wextra -Werror mix-maestro/tests/meter_test.cpp -o /tmp/meter-test && /tmp/meter-test
-      - name: Build VST3 and package
+      - name: Test DSP
+        run: clang++ -std=c++17 -Wall -Wextra -Werror mix-maestro/tests/dsp_test.cpp -o /tmp/dsp-test && /tmp/dsp-test
+      - name: Build and test VST3 and package
         run: bash mix-maestro/build-package.sh
-      - name: Test real installation
+      - name: Test installation
         run: |
-          sudo installer -pkg mix-maestro/dist/Mix_Maestro_0.1.0_AppleSilicon.pkg -target /
+          sudo installer -pkg mix-maestro/dist/Mix_Maestro_0.2.0_AppleSilicon.pkg -target /
           test -d '/Library/Audio/Plug-Ins/VST3/Mix Maestro.vst3'
           codesign --verify --deep --strict '/Library/Audio/Plug-Ins/VST3/Mix Maestro.vst3'
       - uses: actions/upload-artifact@v4
         with:
-          name: Mix-Maestro-AppleSilicon-Installer
+          name: Mix-Maestro-AppleSilicon-Installer-v02
           path: mix-maestro/dist/*
           if-no-files-found: error
           retention-days: 30
