@@ -1,0 +1,28 @@
+name: Mix Maestro macOS Installer
+on:
+  push:
+    branches: [mix-maestro-installer]
+    paths: ['mix-maestro/**', '.github/workflows/mix-maestro.yml']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test meter
+        run: clang++ -std=c++17 -Wall -Wextra -Werror mix-maestro/tests/meter_test.cpp -o /tmp/meter-test && /tmp/meter-test
+      - name: Build VST3 and package
+        run: bash mix-maestro/build-package.sh
+      - name: Test real installation
+        run: |
+          sudo installer -pkg mix-maestro/dist/Mix_Maestro_0.1.0_AppleSilicon.pkg -target /
+          test -d '/Library/Audio/Plug-Ins/VST3/Mix Maestro.vst3'
+          codesign --verify --deep --strict '/Library/Audio/Plug-Ins/VST3/Mix Maestro.vst3'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Mix-Maestro-AppleSilicon-Installer
+          path: mix-maestro/dist/*
+          if-no-files-found: error
+          retention-days: 30
