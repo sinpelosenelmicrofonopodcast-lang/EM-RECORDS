@@ -2,19 +2,23 @@ import QRCode from "qrcode";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
-import { getStripeClient } from "@/lib/stripe";
+import { getStripeClient, isStripeConfigured } from "@/lib/stripe";
 import { createServiceClient } from "@/lib/supabase/service";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 export async function POST(request: Request) {
+  if (!isStripeConfigured()) {
+    return NextResponse.json({ error: "Payments are not configured." }, { status: 503 });
+  }
+
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
   const stripe = getStripeClient();
   const payload = await request.text();
   const headerList = await headers();
   const signature = headerList.get("stripe-signature");
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-  if (!signature || !webhookSecret) {
-    return NextResponse.json({ error: "Missing webhook configuration." }, { status: 400 });
+  if (!signature) {
+    return NextResponse.json({ error: "Missing Stripe signature." }, { status: 400 });
   }
 
   let event: Stripe.Event;
