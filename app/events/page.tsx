@@ -67,7 +67,7 @@ export default async function EventsPage() {
       <SectionTitle
         eyebrow={lang === "es" ? "Eventos / Conciertos" : "Events / Concerts"}
         title={lang === "es" ? "Calendario de Tours" : "Tour Calendar"}
-        description={lang === "es" ? "Venta de tickets integrada con Stripe, validación QR y sponsors por niveles." : "Integrated ticket sales with Stripe, QR validation and sponsor tiers."}
+        description={lang === "es" ? "Venta de tickets integrada con PayPal, validación QR y sponsors por niveles." : "Integrated ticket sales with PayPal, QR validation and sponsor tiers."}
       />
 
       <div className="mt-10 grid gap-5">
@@ -89,16 +89,17 @@ export default async function EventsPage() {
             </div>
 
             <div className="mt-6 flex flex-wrap gap-3">
-              {event.stripePriceId ? (
-                <form action="/api/stripe/checkout" method="POST">
+              {event.ticketPriceCents && event.ticketPriceCents > 0 ? (
+                <form action="/api/paypal/checkout" method="POST">
                   <input type="hidden" name="eventId" value={event.id} />
-                  <input type="hidden" name="priceId" value={event.stripePriceId} />
-                  <input type="hidden" name="eventTitle" value={event.title} />
+                  <input type="hidden" name="quantity" value="1" />
                   <button
                     type="submit"
                     className="rounded-full border border-gold bg-gold px-6 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-black"
                   >
-                    {lang === "es" ? "Comprar Tickets" : "Buy Tickets"}
+                    {lang === "es"
+                      ? `Comprar con PayPal · ${new Intl.NumberFormat("en-US", { style: "currency", currency: event.ticketCurrency }).format(event.ticketPriceCents / 100)}`
+                      : `Buy with PayPal · ${new Intl.NumberFormat("en-US", { style: "currency", currency: event.ticketCurrency }).format(event.ticketPriceCents / 100)}`}
                   </button>
                 </form>
               ) : null}
