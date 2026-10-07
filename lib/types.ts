@@ -35,6 +35,13 @@ export type Artist = {
   updatedAt?: string;
   publishedAt?: string | null;
   isPublished?: boolean;
+  spotifyArtistId?: string | null;
+  appleMusicArtistId?: string | null;
+  youtubeChannelId?: string | null;
+  catalogSyncEnabled?: boolean;
+  lastCatalogSyncAt?: string | null;
+  lastCatalogSyncStatus?: string | null;
+  lastCatalogSyncError?: string | null;
 };
 
 export type ArtistPhoto = {
@@ -92,6 +99,13 @@ export type Release = {
   updatedAt?: string;
   publishedAt?: string | null;
   isPublished?: boolean;
+  spotifyArtistId?: string | null;
+  appleMusicArtistId?: string | null;
+  youtubeChannelId?: string | null;
+  catalogSyncEnabled?: boolean;
+  lastCatalogSyncAt?: string | null;
+  lastCatalogSyncStatus?: string | null;
+  lastCatalogSyncError?: string | null;
 };
 
 export type BookingInquiry = {

@@ -87,6 +87,13 @@ export default async function AdminArtistsPage({ searchParams }: Props) {
           <input name="spotifyUrl" placeholder="Spotify URL" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
           <input name="appleMusicUrl" placeholder="Apple Music URL" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
           <input name="youtubeUrl" placeholder="YouTube URL" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
+          <input name="spotifyArtistId" placeholder="Spotify Artist ID" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
+          <input name="appleMusicArtistId" placeholder="Apple Music Artist ID" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
+          <input name="youtubeChannelId" placeholder="YouTube Channel ID" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
+          <label className="flex items-center gap-2 text-sm text-white/75">
+            <input type="checkbox" name="catalogSyncEnabled" defaultChecked className="h-4 w-4 rounded border-white/30 bg-black" />
+            Auto-sync Spotify, Apple Music and YouTube catalog
+          </label>
           <input name="spotifyEmbed" placeholder="Spotify Embed URL" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
           <input name="soundcloudEmbed" placeholder="SoundCloud URL or Embed" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
           <input name="musicVideoEmbed" placeholder="Music Video URL or Embed" className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold" />
@@ -219,6 +226,28 @@ export default async function AdminArtistsPage({ searchParams }: Props) {
                 placeholder="YouTube URL"
                 className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold"
               />
+              <input
+                name="spotifyArtistId"
+                defaultValue={artist.spotifyArtistId ?? ""}
+                placeholder="Spotify Artist ID"
+                className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold"
+              />
+              <input
+                name="appleMusicArtistId"
+                defaultValue={artist.appleMusicArtistId ?? ""}
+                placeholder="Apple Music Artist ID"
+                className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold"
+              />
+              <input
+                name="youtubeChannelId"
+                defaultValue={artist.youtubeChannelId ?? ""}
+                placeholder="YouTube Channel ID"
+                className="rounded-xl border border-white/15 bg-black px-4 py-3 text-sm text-white outline-none focus:border-gold"
+              />
+              <label className="flex items-center gap-2 text-sm text-white/75">
+                <input type="checkbox" name="catalogSyncEnabled" defaultChecked={artist.catalogSyncEnabled ?? true} className="h-4 w-4 rounded border-white/30 bg-black" />
+                Auto-sync DSP catalog
+              </label>
               <input
                 name="spotifyEmbed"
                 defaultValue={artist.spotifyEmbed ?? ""}
