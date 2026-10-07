@@ -385,7 +385,17 @@ export async function upsertEventAction(formData: FormData) {
     city: String(formData.get("city") ?? "").trim(),
     country: String(formData.get("country") ?? "").trim(),
     starts_at: String(formData.get("startsAt") ?? "").trim(),
-    stripe_price_id: String(formData.get("stripePriceId") ?? "").trim() || null,
+    stripe_price_id: null,
+    ticket_price_cents: (() => {
+      const raw = String(formData.get("ticketPrice") ?? "").trim();
+      if (!raw) return null;
+      const value = Number(raw);
+      if (!Number.isFinite(value) || value < 0) {
+        throw new Error("Invalid ticket price.");
+      }
+      return Math.round(value * 100);
+    })(),
+    ticket_currency: (String(formData.get("ticketCurrency") ?? "USD").trim().toUpperCase() || "USD").slice(0, 3),
     ticket_url: String(formData.get("ticketUrl") ?? "").trim() || null,
     sponsors,
     status: String(formData.get("status") ?? "upcoming").trim()
