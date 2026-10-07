@@ -7,7 +7,7 @@ plugin_path="$PWD/build/MixMaestro_artefacts/Release/VST3/Mix Maestro.vst3"
 test -d "$plugin_path"
 codesign --force --deep --sign - "$plugin_path"
 codesign --verify --deep --strict "$plugin_path"
-lipo -verify_arch arm64 "$plugin_path/Contents/MacOS/Mix Maestro"
+lipo "$plugin_path/Contents/MacOS/Mix Maestro" -verify_arch arm64
 mkdir -p package-root/Library/Audio/Plug-Ins/VST3 dist
 ditto "$plugin_path" "package-root/Library/Audio/Plug-Ins/VST3/Mix Maestro.vst3"
 pkgbuild --root package-root --identifier com.emrecords.mixmaestro.installer --version 0.1.0 --install-location / dist/Mix_Maestro_0.1.0_AppleSilicon.pkg
