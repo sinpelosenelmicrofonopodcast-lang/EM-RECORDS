@@ -58,34 +58,72 @@ def generate(genre,bpm,bars,key,seed,creativity):
   channel=9 if j<4 else j
   tracks.append((name,notes,channel,[0,0,0,0,38,4,24,80,89][j]))
  return tracks
-root=tk.Tk();root.title('EM BEAT GEN | EM Records');root.geometry('600x565');root.configure(bg='#191919')
-frm=ttk.Frame(root,padding=24);frm.pack(fill='both',expand=True)
-ttk.Label(frm,text='EM BEAT GEN',font=('Arial',24,'bold')).pack(anchor='w')
-ttk.Label(frm,text='Multi-genre MIDI composer · EM Records').pack(anchor='w',pady=(0,12))
-v={}
-for label,options,default in [('Genre',list(GENRES),'Afro-Reggaeton'),('Key',['Am','Cm','Dm','Em','F#m','Gm','Bm','C','D','E','F','G','A','Bb','Eb'],'Am'),('BPM',None,'104'),('Bars',None,'56'),('Seed',None,'42'),('Creativity',None,'65')]:
- row=ttk.Frame(frm);row.pack(fill='x',pady=4);ttk.Label(row,text=label,width=14).pack(side='left')
- var=tk.StringVar(value=default);v[label]=var
- item=ttk.Combobox(row,textvariable=var,values=options,state='readonly') if options else ttk.Entry(row,textvariable=var)
- item.pack(side='left',fill='x',expand=True)
-def setbpm(*_):
- if v['Genre'].get() in GENRES:v['BPM'].set(str(GENRES[v['Genre'].get()]))
-v['Genre'].trace_add('write',setbpm)
-ttk.Label(frm,text='Description (reference for arrangement)').pack(anchor='w',pady=(8,1))
-prompt=tk.Text(frm,height=3);prompt.pack(fill='x')
-prompt.insert('1.0','Commercial groove, strong bass and catchy melodies')
-def export():
- try:
-  genre=v['Genre'].get();bpm=int(v['BPM'].get());bars=int(v['Bars'].get());seed=int(v['Seed'].get());creative=int(v['Creativity'].get())
-  if not 40<=bpm<=240 or not 1<=bars<=256 or not 0<=creative<=100:raise ValueError('Invalid tempo, bars or creativity')
-  tracks=generate(genre,bpm,bars,v['Key'].get(),seed,creative)
-  out=filedialog.askdirectory(title='Choose MIDI output folder')
-  if not out:return
-  folder=Path(out)/('EM_BEAT_GEN_'+str(seed));folder.mkdir(exist_ok=True)
-  (folder/'FULL_ARRANGEMENT.mid').write_bytes(midi(tracks,bpm))
-  for name,notes,ch,pr in tracks:(folder/(name.replace('/','_')+'.mid')).write_bytes(midi([(name,notes,ch,pr)],bpm))
-  messagebox.showinfo('EM BEAT GEN','Saved 9 instrument tracks and full arrangement in:\n'+str(folder))
- except Exception as e:messagebox.showerror('Error',str(e))
-ttk.Button(frm,text='GENERATE MIDI ARRANGEMENT',command=export).pack(fill='x',pady=18)
-ttk.Label(frm,text='Import FULL_ARRANGEMENT.mid in FL Studio.\nStandalone MIDI generator — no Python installation required.').pack(anchor='w')
-root.mainloop()
+
+def main():
+ root=tk.Tk()
+ root.title('EM BEAT GEN v0.3 | EM Records')
+ root.geometry('720x740')
+ root.minsize(610,690)
+ root.configure(bg='#10131b')
+ bg='#10131b'; panel='#1b2230'; fg='#ffffff'; muted='#a5b2c7'; accent='#ff762e'
+ frame=tk.Frame(root,bg=bg,padx=28,pady=20)
+ frame.pack(fill='both',expand=True)
+ tk.Label(frame,text='EM BEAT GEN',font=('Helvetica',29,'bold'),fg=fg,bg=bg).pack(anchor='w')
+ tk.Label(frame,text='VERSION 0.3  |  EM RECORDS  |  MULTI-GENRE MIDI STUDIO',font=('Helvetica',11),fg=accent,bg=bg).pack(anchor='w',pady=(2,18))
+ tk.Label(frame,text='Generate a multi-track arrangement that you can edit in FL Studio.',fg=muted,bg=bg,font=('Helvetica',12)).pack(anchor='w',pady=(0,12))
+ values={}
+ def add_option(label,options,initial):
+  row=tk.Frame(frame,bg=bg)
+  row.pack(fill='x',pady=5)
+  tk.Label(row,text=label,fg=fg,bg=bg,font=('Helvetica',12),width=14,anchor='w').pack(side='left')
+  v=tk.StringVar(value=initial)
+  menu=tk.OptionMenu(row,v,*options)
+  menu.configure(bg=panel,fg=fg,activebackground='#344154',activeforeground=fg,highlightthickness=0,font=('Helvetica',12),width=18)
+  menu['menu'].configure(bg=panel,fg=fg)
+  menu.pack(side='left',fill='x',expand=True)
+  values[label]=v
+ def add_entry(label,initial):
+  row=tk.Frame(frame,bg=bg)
+  row.pack(fill='x',pady=5)
+  tk.Label(row,text=label,fg=fg,bg=bg,font=('Helvetica',12),width=14,anchor='w').pack(side='left')
+  v=tk.StringVar(value=initial)
+  tk.Entry(row,textvariable=v,fg=fg,bg=panel,insertbackground=fg,relief='flat',font=('Helvetica',13),width=20).pack(side='left',fill='x',expand=True,ipady=5)
+  values[label]=v
+ add_option('Genre',list(GENRES),'Afro-Reggaeton')
+ add_option('Key',['Am','Cm','Dm','Em','F#m','Gm','Bm','C','D','E','F','G','A','Bb','Eb'],'Am')
+ add_entry('BPM','104')
+ add_entry('Bars','56')
+ add_entry('Seed','42')
+ add_entry('Creativity','65')
+ def update_bpm(*_):
+  genre=values['Genre'].get()
+  if genre in GENRES:values['BPM'].set(str(GENRES[genre]))
+ values['Genre'].trace_add('write',update_bpm)
+ tk.Label(frame,text='Production description',fg=fg,bg=bg,font=('Helvetica',12,'bold')).pack(anchor='w',pady=(15,4))
+ prompt=tk.Text(frame,height=3,fg=fg,bg=panel,insertbackground=fg,relief='flat',font=('Helvetica',12),wrap='word')
+ prompt.pack(fill='x')
+ prompt.insert('1.0','Commercial groove, rich bass, melodic hooks, and polished drums.')
+ status=tk.StringVar(value='Ready to generate MIDI.')
+ tk.Label(frame,textvariable=status,fg=muted,bg=bg,font=('Helvetica',11),anchor='w').pack(fill='x',pady=10)
+ def export():
+  try:
+   genre=values['Genre'].get(); bpm=int(values['BPM'].get()); bars=int(values['Bars'].get()); seed=int(values['Seed'].get()); creative=int(values['Creativity'].get())
+   if not 40<=bpm<=240 or not 1<=bars<=256 or not 0<=creative<=100:raise ValueError('BPM 40–240, bars 1–256 and creativity 0–100 required')
+   tracks=generate(genre,bpm,bars,values['Key'].get(),seed,creative)
+   out=filedialog.askdirectory(title='Choose MIDI output folder',parent=root)
+   if not out:return
+   folder=Path(out)/('EM_BEAT_GEN_'+str(seed));folder.mkdir(parents=True,exist_ok=True)
+   (folder/'FULL_ARRANGEMENT.mid').write_bytes(midi(tracks,bpm))
+   for name,notes,ch,pr in tracks:
+    (folder/(name.replace('/','_')+'.mid')).write_bytes(midi([(name,notes,ch,pr)],bpm))
+   status.set('Saved 10 MIDI files to '+str(folder))
+   messagebox.showinfo('EM BEAT GEN','MIDI arrangement generated successfully!\\n'+str(folder),parent=root)
+  except Exception as e:
+   status.set('Error: '+str(e))
+   messagebox.showerror('EM BEAT GEN',str(e),parent=root)
+ tk.Button(frame,text='GENERATE MIDI ARRANGEMENT',command=export,fg='#10131b',bg=accent,activebackground='#ff9b61',relief='flat',font=('Helvetica',14,'bold'),pady=12).pack(fill='x',pady=(12,10))
+ tk.Label(frame,text='Export: full multitrack MIDI + 9 separate instrument parts.\\nImport FULL_ARRANGEMENT.mid into FL Studio.',fg=muted,bg=bg,justify='left',font=('Helvetica',11)).pack(anchor='w')
+ root.mainloop()
+
+if __name__=='__main__':
+ main()
