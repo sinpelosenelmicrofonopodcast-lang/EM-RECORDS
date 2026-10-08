@@ -17,6 +17,13 @@ jobs:
       - name: Validate and package app
         run: |
           python3 -m py_compile beat_gen_mac_app.py
+          python3 - <<'PY'
+          import ast
+          p = ast.parse(open('beat_gen_mac_app.py').read())
+          assert any(isinstance(n, ast.FunctionDef) and n.name == 'main' for n in p.body)
+          assert 'EM BEAT GEN v0.3' in open('beat_gen_mac_app.py').read()
+          print('GUI entrypoint and v0.3 identity verified')
+          PY
           python3 -m PyInstaller --noconfirm --clean --windowed --target-arch arm64 --name "EM Beat Gen" --osx-bundle-identifier com.emrecords.embeatgen beat_gen_mac_app.py
           test -x "dist/EM Beat Gen.app/Contents/MacOS/EM Beat Gen"
           codesign --force --deep --sign - "dist/EM Beat Gen.app"
@@ -24,7 +31,7 @@ jobs:
       - name: Build PKG
         run: |
           mkdir -p release
-          pkgbuild --component "dist/EM Beat Gen.app" --install-location /Applications --identifier com.emrecords.embeatgen --version 0.2.0 "release/EM_Beat_Gen_Mac.pkg"
+          pkgbuild --component "dist/EM Beat Gen.app" --install-location /Applications --identifier com.emrecords.embeatgen --version 0.3.0 "release/EM_Beat_Gen_Mac.pkg"
       - name: Verify installation
         run: |
           sudo installer -pkg release/EM_Beat_Gen_Mac.pkg -target /
