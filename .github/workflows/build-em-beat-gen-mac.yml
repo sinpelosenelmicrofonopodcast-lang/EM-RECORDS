@@ -1,0 +1,37 @@
+name: Build EM Beat Gen Mac Installer
+on:
+  push:
+    branches: [em-beat-gen-macos-build]
+    paths:
+      - "beat_gen_mac_app.py"
+      - ".github/workflows/build-em-beat-gen-mac.yml"
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PyInstaller
+        run: python3 -m pip install --user --break-system-packages pyinstaller
+      - name: Validate and package app
+        run: |
+          python3 -m py_compile beat_gen_mac_app.py
+          python3 -m PyInstaller --noconfirm --clean --windowed --target-arch arm64 --name "EM Beat Gen" --osx-bundle-identifier com.emrecords.embeatgen beat_gen_mac_app.py
+          test -x "dist/EM Beat Gen.app/Contents/MacOS/EM Beat Gen"
+          codesign --force --deep --sign - "dist/EM Beat Gen.app"
+          codesign --verify --deep --strict "dist/EM Beat Gen.app"
+      - name: Build PKG
+        run: |
+          mkdir -p release
+          pkgbuild --component "dist/EM Beat Gen.app" --install-location /Applications --identifier com.emrecords.embeatgen --version 0.2.0 "release/EM_Beat_Gen_Mac.pkg"
+      - name: Verify installation
+        run: |
+          sudo installer -pkg release/EM_Beat_Gen_Mac.pkg -target /
+          test -x "/Applications/EM Beat Gen.app/Contents/MacOS/EM Beat Gen"
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: EM_Beat_Gen_Mac_Installer
+          path: release/EM_Beat_Gen_Mac.pkg
+          if-no-files-found: error
