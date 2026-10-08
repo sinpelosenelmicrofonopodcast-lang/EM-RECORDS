@@ -599,7 +599,7 @@ export const getReleasesAdmin = cache(async (): Promise<Release[]> => {
 
 export const getReleases = cache(async (): Promise<Release[]> => {
   const releases = await getReleasesAdmin();
-  return releases.filter((release) => isContentLive(release.contentStatus, release.publishAt, release.releaseDate));
+  return releases.filter((release) => release.isPublished !== false && isContentLive(release.contentStatus, release.publishAt, release.releaseDate));
 });
 
 function isReleasePublishedForSeo(release: Release): boolean {
@@ -778,6 +778,7 @@ export const getCountdownRelease = cache(async (): Promise<Release | null> => {
   const releases = await getReleasesAdmin();
   const now = new Date();
   const upcoming = releases
+    .filter((release) => release.isPublished !== false)
     .filter((release) => (release.contentStatus ?? "published") !== "draft")
     .filter((release) => new Date(release.releaseDate) > now)
     .sort((a, b) => +new Date(a.releaseDate) - +new Date(b.releaseDate));
