@@ -3,6 +3,8 @@ import { SidebarShell } from "@/components/shared/sidebar-shell";
 import { signOutAdminAction } from "@/lib/actions/admin";
 
 const nav=[
+  {href:"/admin/collaborations",label:"Collaborations",group:"Catalog"},
+  {href:"/admin/demos",label:"Demos privados",group:"Artists"},
   {href:"/admin",label:"Control Center",exact:true,group:"Overview"},
   {href:"/admin/inbox",label:"Inbox",group:"Overview"},
   {href:"/admin/artists",label:"Roster",group:"Artists"},

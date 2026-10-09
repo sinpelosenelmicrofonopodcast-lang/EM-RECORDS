@@ -1,3 +1,4 @@
+import { FilePlayer } from "@/components/collaborations/shared";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { requireAdminPage } from "@/lib/auth";
 import { getDemoSubmissions } from "@/lib/queries";
@@ -26,9 +27,7 @@ export default async function AdminDemosPage() {
                 </p>
                 <p className="mt-2 text-xs uppercase tracking-[0.16em] text-white/45">{formatDate(demo.createdAt)}</p>
               </div>
-              <a href={demo.fileUrl} target="_blank" rel="noreferrer" className="mt-3 inline-block text-sm text-gold underline underline-offset-4 md:mt-0">
-                Listen file
-              </a>
+              <FilePlayer id={demo.id} admin legacy />
             </div>
 
             {demo.message ? <p className="mt-3 text-sm text-white/70">{demo.message}</p> : null}

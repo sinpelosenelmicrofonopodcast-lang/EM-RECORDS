@@ -7,6 +7,7 @@ import { getSiteLanguage } from "@/lib/i18n/server";
 export async function SiteHeader() {
   const lang = await getSiteLanguage();
   const navItems = [
+    { href: "/collaborations", label: "Collaborations" },
     { href: "/artists", label: lang === "es" ? "Artistas" : "Artists" },
     { href: "/music", label: lang === "es" ? "Música" : "Music" },
     { href: "/beats", label: "Beats" },
