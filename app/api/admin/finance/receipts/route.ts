@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireGrowthApiContext } from "@/modules/growth-engine/auth";
+import { requireFinanceApiContext } from "@/lib/finance/access";
 
 export const dynamic = "force-dynamic";
 const ALLOWED: Record<string, { ext: string; valid: (bytes: Uint8Array) => boolean }> = {
@@ -10,7 +10,7 @@ const ALLOWED: Record<string, { ext: string; valid: (bytes: Uint8Array) => boole
 };
 
 export async function POST(request: Request) {
-  const auth = await requireGrowthApiContext("admin");
+  const auth = await requireFinanceApiContext();
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
     const form = await request.formData();
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
-  const auth = await requireGrowthApiContext("admin");
+  const auth = await requireFinanceApiContext();
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const path = new URL(request.url).searchParams.get("path") ?? "";
   if (!/^receipts\/[a-f0-9-]{36}\.(pdf|png|jpg|webp)$/.test(path))
