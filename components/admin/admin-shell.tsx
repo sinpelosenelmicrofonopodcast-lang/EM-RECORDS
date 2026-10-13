@@ -7,6 +7,7 @@ const nav = [
   { href: "/admin/signing", label: "Artist Signing" },
   { href: "/admin/artists", label: "Artists" },
   { href: "/admin/label-os", label: "Label OS" },
+  { href: "/admin/finanzas", label: "Finanzas" },
   { href: "/dashboard/social-media", label: "Social Media Center" },
   { href: "/admin/social-engine", label: "Social Engine" },
   { href: "/admin/growth-engine", label: "Growth Engine" },
