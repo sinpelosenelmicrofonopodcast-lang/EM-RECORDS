@@ -1,13 +1,13 @@
 import { AdminShell } from "@/components/admin/admin-shell";
 import { FinanceDashboard } from "@/components/admin/finance-dashboard";
-import { requireGrowthPageAccess } from "@/modules/growth-engine/auth";
+import { requireFinancePageAccess } from "@/lib/finance/access";
 import { createServiceClient } from "@/lib/supabase/service";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Finanzas | EM Records", robots: { index: false, follow: false } };
 
 export default async function FinancePage() {
-  await requireGrowthPageAccess("admin");
+  await requireFinancePageAccess();
   const db = createServiceClient();
   const [transactions, budgets, artists, releases] = await Promise.all([
     db.from("finance_transactions").select("*").order("occurred_on", { ascending: false }).order("created_at", { ascending: false }).limit(1500),
