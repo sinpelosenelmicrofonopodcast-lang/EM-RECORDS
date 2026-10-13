@@ -14,6 +14,7 @@ const nav=[
   {href:"/admin/beats",label:"Beats Catalog",group:"Catalog"},
   {href:"/admin/beat-requests",label:"Beat Requests",group:"Catalog"},
   {href:"/admin/booking-inquiries",label:"Projects & Bookings",group:"Business"},
+  {href:"/admin/finanzas",label:"Finanzas",group:"Business"},
   {href:"/admin/events",label:"Events",group:"Business"},
   {href:"/admin/social-publishing",label:"Publishing Queue",group:"Marketing"},
   {href:"/admin/growth-engine",label:"Growth & Campaigns",group:"Marketing"},
