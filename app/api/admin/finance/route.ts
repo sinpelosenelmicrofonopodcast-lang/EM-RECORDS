@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     if (body.resource === "budget") {
       const parsed = budget.parse(body.data);
       const { data, error } = await auth.service.from("finance_budgets")
-        .upsert({ ...parsed, created_by: null, updated_at: new Date().toISOString() }, { onConflict: "month,category" })
+        .upsert({ ...parsed, created_by: auth.userId, updated_at: new Date().toISOString() }, { onConflict: "month,category" })
         .select("*").single();
       if (error) throw error;
       return NextResponse.json({ ok: true, record: data });
@@ -70,7 +70,7 @@ export async function PATCH(request: Request) {
     const parsed = transaction.parse(body.data);
     if (!validateReceipt(parsed.receipt_path)) throw new Error("Comprobante inválido.");
     const { data, error } = await auth.service.from("finance_transactions")
-      .update({ ...parsed, updated_at: new Date().toISOString(), created_by: auth.userId })
+      .update({ ...parsed, updated_at: new Date().toISOString(), updated_by: auth.userId })
       .eq("id", recordId).select("*").single();
     if (error) throw error;
     return NextResponse.json({ ok: true, record: data });
