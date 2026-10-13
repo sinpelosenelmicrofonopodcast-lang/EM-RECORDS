@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireGrowthApiContext } from "@/modules/growth-engine/auth";
-import { getCurrentUserRoleSnapshot } from "@/lib/auth";
+import { requireFinanceApiContext } from "@/lib/finance/access";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +37,7 @@ function replyError(error: unknown, status = 400) {
 }
 
 export async function POST(request: Request) {
-  const auth = await requireGrowthApiContext("admin");
+  const auth = await requireFinanceApiContext();
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
     const body = await request.json();
@@ -54,7 +53,7 @@ export async function POST(request: Request) {
     const parsed = transaction.parse(body.data);
     if (!validateReceipt(parsed.receipt_path)) throw new Error("Comprobante inválido.");
     const { data, error } = await auth.service.from("finance_transactions")
-      .insert({ ...parsed, created_by: (await getCurrentUserRoleSnapshot())?.user.id ?? null })
+      .insert({ ...parsed, created_by: auth.userId })
       .select("*").single();
     if (error) throw error;
     return NextResponse.json({ ok: true, record: data });
@@ -62,7 +61,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const auth = await requireGrowthApiContext("admin");
+  const auth = await requireFinanceApiContext();
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
     const body = await request.json();
@@ -71,7 +70,7 @@ export async function PATCH(request: Request) {
     const parsed = transaction.parse(body.data);
     if (!validateReceipt(parsed.receipt_path)) throw new Error("Comprobante inválido.");
     const { data, error } = await auth.service.from("finance_transactions")
-      .update({ ...parsed, updated_at: new Date().toISOString() })
+      .update({ ...parsed, updated_at: new Date().toISOString(), created_by: auth.userId })
       .eq("id", recordId).select("*").single();
     if (error) throw error;
     return NextResponse.json({ ok: true, record: data });
@@ -79,7 +78,7 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const auth = await requireGrowthApiContext("admin");
+  const auth = await requireFinanceApiContext();
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
     const body = await request.json();
