@@ -12,6 +12,7 @@ const nav=[
   {href:"/admin/releases",label:"Releases",group:"Catalog"},
   {href:"/admin/catalog-sync",label:"Catalog Sync",group:"Catalog"},
   {href:"/admin/beats",label:"Beats Catalog",group:"Catalog"},
+  {href:"/admin/beat-vault",label:"Private Beat Vault",group:"Catalog"},
   {href:"/admin/beat-requests",label:"Beat Requests",group:"Catalog"},
   {href:"/admin/booking-inquiries",label:"Projects & Bookings",group:"Business"},
   {href:"/admin/finanzas",label:"Finanzas",group:"Business"},
