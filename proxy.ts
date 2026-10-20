@@ -36,7 +36,7 @@ export async function proxy(request: NextRequest) {
     });
   }
 
-  if (pathname.startsWith("/admin") || pathname.startsWith("/dashboard")) {
+  if (pathname.startsWith("/admin") || pathname.startsWith("/dashboard") || pathname.startsWith("/beat-vault") || pathname.startsWith("/api/beat-vault")) {
     response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
   }
 
