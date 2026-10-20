@@ -11,6 +11,7 @@ const nav = [
   { href: "/admin/social-engine", label: "Social Engine" },
   { href: "/admin/growth-engine", label: "Growth Engine" },
   { href: "/admin/releases", label: "Releases" },
+  { href: "/admin/beat-vault", label: "Private Beat Vault" },
   { href: "/admin/events", label: "Events" },
   { href: "/admin/news", label: "News" },
   { href: "/admin/social-publishing", label: "Social Publishing" },
