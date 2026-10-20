@@ -125,6 +125,14 @@ export default async function BeatsPage({ searchParams }: Props) {
         }
       />
 
+      <div className="mt-7 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-gold/30 bg-gold/10 px-6 py-5">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">EM Records · Private Beat Vault</p>
+          <p className="mt-2 text-sm text-white/70">{lang === "es" ? "¿Tienes una clave de invitación? Escucha los beats completos en el catálogo privado." : "Have an invitation key? Listen to full-length beats in our private vault."}</p>
+        </div>
+        <Link href="/beat-vault" className="rounded-full bg-gold px-5 py-3 text-xs font-semibold uppercase tracking-widest text-black hover:brightness-110">{lang === "es" ? "Acceso privado" : "Private access"}</Link>
+      </div>
+
       {query.checkout === "inactive" ? (
         <div className="mt-6 rounded-2xl border border-gold/35 bg-gold/10 p-4 text-sm text-white/80">
           {lang === "es"
